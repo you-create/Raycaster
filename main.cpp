@@ -1,3 +1,4 @@
+#include <array>
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 #include <iostream>
@@ -6,6 +7,10 @@
 int main()
 {
     sf::RenderWindow window(sf::VideoMode(1200, 600), "Ray-Caster", sf::Style::Titlebar | sf::Style::Close);
+
+    //colours
+    sf::Color Grey(180, 180, 180);
+    sf::Color DarkGreen(70, 200, 40);
 
     //making grid
     sf::VertexArray grid(sf::Lines, 40);
@@ -28,8 +33,7 @@ int main()
     //tiles
     sf::RectangleShape tile;
     tile.setSize(sf::Vector2f(75, 75));
-    sf::Color grey(180, 180, 180);
-    tile.setFillColor(grey);
+    tile.setFillColor(Grey);
     //map
     int map[8][8] = {
         {1,1,1,1,1,1,1,1},
@@ -53,15 +57,68 @@ int main()
     player.setOrigin(p.x,p.y);
 
     //ray
-    sf::VertexArray ray(sf::PrimitiveType::Lines,2);
-    ray[0].color = sf::Color::Red;
-    ray[1].color = sf::Color::Red;
-    ray[0].position = {p.x, p.y};
-    ray[1].position = {0, 0};
-    //float rl {0}; //ray length
+    std::array<sf::VertexArray, 50> ray = {
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2),
+        sf::VertexArray(sf::PrimitiveType::Lines,2)};
+    for (int i=0;i<50;i++) {
+        ray[i][0].color=sf::Color::Red;
+        ray[i][1].color=sf::Color::Red;
+    }
+    std::array<float, 50> rl{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}; //ray length
+
+    //wall rectangles
+    std::array<sf::RectangleShape, 50> wall;
 
     //algorithm use
-    int side {-1};
+    std::array<int, 50> side{-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,}; //used for algo and to select wall colour
 
     sf::Vector2f scaledPos; //scaled position
     sf::Vector2i truncatedPos; //scaled position truncated to int
@@ -91,9 +148,6 @@ int main()
         //position settings
         //x increases left->right, y increases up->down
         p.z=player.getRotation()*M_PI/180;
-        scaledPos={8*p.x/600,8*p.y/600}; //scaled position
-        truncatedPos={static_cast<int>(scaledPos.x),static_cast<int>(scaledPos.y)}; //scaled position cast to int (map use)
-        internalPos={scaledPos.x-static_cast<float>(truncatedPos.x),scaledPos.y-static_cast<float>(truncatedPos.y)}; //internal position in square
 
         //movement
         //forwards
@@ -102,7 +156,10 @@ int main()
             p.x+=cos(p.z)*100*dt.asSeconds();
             p.y+=sin(p.z)*100*dt.asSeconds();
             player.setPosition(p.x, p.y);
-            ray[0].position = {p.x, p.y};
+            //ray[0].position = {p.x, p.y};
+            for (int i=0;i<50;i++) {
+                ray[i][0].position={static_cast<float>(p.x-sin(p.z)*(i-25)*2), static_cast<float>(p.y+cos(p.z)*(i-25)*2)};
+            }
         }
         //backwards
         else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S))
@@ -110,183 +167,212 @@ int main()
             p.x-=cos(p.z)*100*dt.asSeconds();
             p.y-=sin(p.z)*100*dt.asSeconds();
             player.setPosition(p.x, p.y);
-            ray[0].position = {p.x, p.y};
+            //ray[0].position = {p.x, p.y};
+            for (int i=0;i<50;i++) {
+                ray[i][0].position={static_cast<float>(p.x-sin(p.z)*(i-25)*2), static_cast<float>(p.y+cos(p.z)*(i-25)*2)};
+            }
         }
         //rotate ccw
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A))
         {
             player.rotate(-3);
-            ray[0].position = {p.x, p.y};
+            //ray[0].position = {p.x, p.y};
+            for (int i=0;i<50;i++) {
+                ray[i][0].position={static_cast<float>(p.x-sin(p.z)*(i-25)*2), static_cast<float>(p.y+cos(p.z)*(i-25)*2)};
+            }
         }
         //rotate cw
         else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D))
         {
             player.rotate(3);
-            ray[0].position = {p.x, p.y};
+            //ray[0].position = {p.x, p.y};
+            for (int i=0;i<50;i++) {
+                ray[i][0].position={static_cast<float>(p.x-sin(p.z)*(i-25)*2), static_cast<float>(p.y+cos(p.z)*(i-25)*2)};
+            }
         }
 
         //algorithm
         //checks all ver and hor intercepts with tracker rays from init pos, compares which hits first
-        side=-1;
-
-        if (abs(p.z-0)<0.0000001||abs(p.z-2*M_PI)<0.0000001) { //0 and 360
-            vDist.x=1-internalPos.x;
-            vDist.y=0;
-
-            delta.y=0;
-
-            unit.x=1;
-        } else
-        if (abs(p.z-M_PI/2)<0.0000001) { //90
-            hDist.x=0;
-            hDist.y=1-internalPos.y;
-
-            delta.x=0;
-
-            unit.y=1;
-        } else if (abs(p.z-M_PI)<0.0000001) { //180
-            vDist.x=-internalPos.x;
-            vDist.y=0;
-
-            delta.y=0;
-
-            unit.x=-1;
-        } else if (abs(p.z-3*M_PI/2)<0.0000001) { //270
-            hDist.x=0;
-            hDist.y=-internalPos.y;
-
-            delta.x=0;
-
-            unit.y=-1;
-        } else if (p.z>M_PI/2&&p.z<M_PI) { //2nd quadrant cw
-            vDist.x=-internalPos.x; //-ve
-            vDist.y=-vDist.x*tan(M_PI-p.z); //+ve
-            hDist.y=1-internalPos.y; //+ve
-            hDist.x=-hDist.y*1/tan(M_PI-p.z); //-ve
-
-            delta.x=-1.f/tan(M_PI-p.z);
-            delta.y=tan(M_PI-p.z);
-
-            unit.x=-1;
-            unit.y=1;
-        } else if (p.z>M_PI&&p.z<3*M_PI/2) { //3rd quadrant cw
-            vDist.x=-internalPos.x; //-ve
-            vDist.y=vDist.x*tan(p.z-M_PI); //-ve
-            hDist.y=-internalPos.y; //-ve
-            hDist.x=hDist.y*1/tan(p.z-M_PI); //-ve
-
-            delta.x=-1.f/tan(p.z-M_PI);
-            delta.y=-tan(p.z-M_PI);
-
-            unit.x=-1;
-            unit.y=-1;
-        } else if (p.z>3*M_PI/2&&p.z<2*M_PI) { //4th quadrant cw
-            vDist.x=1-internalPos.x; //+ve
-            vDist.y=-vDist.x*tan(2*M_PI-p.z); //-ve
-            hDist.y=-internalPos.y; //-ve
-            hDist.x=-hDist.y*1/tan(2*M_PI-p.z); //+ve
-
-            delta.x=1.f/tan(2*M_PI-p.z);
-            delta.y=-tan(2*M_PI-p.z);
-
-            unit.x=1;
-            unit.y=-1;
-        } else { //1st quadrant cw
-            vDist.x=1-internalPos.x;
-            vDist.y=vDist.x*tan(p.z);
-            hDist.y=1-internalPos.y;
-            hDist.x=hDist.y*1/tan(p.z);
-
-            delta.x=1.f/tan(p.z);
-            delta.y=tan(p.z);
-
-            unit.x=1;
-            unit.y=1;
+        for (int i=0;i<50;i++) {
+            side[i]=-1;
         }
 
-        if (abs(p.z-0)<0.0000001||abs(p.z-M_PI)<0.0000001||abs(p.z-2*M_PI)<0.0000001) { //0, 180, and 360
-            vInt.x=scaledPos.x+vDist.x;
-            vInt.y=scaledPos.y+vDist.y;
-            if (abs(p.z-M_PI)<0.0000001) { //180 adjustment
-                vInt.x-=1;
-            }
-            while (true) {
-                if (map[static_cast<int>(vInt.x)][static_cast<int>(vInt.y)]!=0)break;
-                vInt.x+=unit.x;
-                vInt.y+=delta.y;
-            }
-            if (abs(p.z-M_PI)<0.0000001) { //180 adjustment
-                vInt.x+=1;
-            }
-            vDist.x=vInt.x-scaledPos.x;
-            vDist.y=vInt.y-scaledPos.y;
-            side=1;
-        } else if (abs(p.z-M_PI/2)<0.0000001||abs(p.z-3*M_PI/2)<0.0000001) { //90 and 270
-            hInt.x=scaledPos.x+hDist.x;
-            hInt.y=scaledPos.y+hDist.y;
-            if (abs(p.z-3*M_PI/2)<0.0000001) { //270 adjustment
-                hInt.y-=1;
-            }
-            while (true) {
-                if (map[static_cast<int>(hInt.x)][static_cast<int>(hInt.y)]!=0)break;
-                hInt.x+=delta.x;
-                hInt.y+=unit.y;
-            }
-            if (abs(p.z-3*M_PI/2)<0.0000001) { //270 adjustment
-                hInt.y+=1;
-            }
-            hDist.x=hInt.x-scaledPos.x;
-            hDist.y=hInt.y-scaledPos.y;
-            side=0;
-        } else {
-            //first intercept positions
-            vInt.x=scaledPos.x+vDist.x;
-            vInt.y=scaledPos.y+vDist.y;
-            hInt.x=scaledPos.x+hDist.x;
-            hInt.y=scaledPos.y+hDist.y;
+        for (int i=0;i<50;i++) {
+            scaledPos={8*(p.x-sin(p.z)*(i-25)*2)/600,8*(p.y+cos(p.z)*(i-25)*2)/600}; //scaled position
+            //scaledPos={8*p.x/600,8*p.y/600}; //scaled position
+            truncatedPos={static_cast<int>(scaledPos.x),static_cast<int>(scaledPos.y)}; //scaled position cast to int (map use)
+            internalPos={scaledPos.x-static_cast<float>(truncatedPos.x),scaledPos.y-static_cast<float>(truncatedPos.y)}; //internal position in square
 
-            if (p.z>M_PI/2&&p.z<M_PI) { //2nd quadrant adjustment
-                vInt.x-=1;
-            } else if (p.z>M_PI&&p.z<3*M_PI/2) { //3rd quadrant adjustment
-                vInt.x-=1;
-                hInt.y-=1;
-            } else if (p.z>3*M_PI/2&&p.z<2*M_PI) { //4th quadrant adjustment
-                hInt.y-=1;
-            }
+            if (abs(p.z-0)<0.0000001||abs(p.z-2*M_PI)<0.0000001) { //0 and 360
+                vDist.x=1-internalPos.x;
+                vDist.y=0;
 
-            //checking all ver and hor intercepts separately
-            while (true) {
-                if (map[static_cast<int>(vInt.x)][static_cast<int>(vInt.y)]!=0)break;
-                vInt.x+=unit.x;
-                vInt.y+=delta.y;
-            }
-            while (true) {
-                if (map[static_cast<int>(hInt.x)][static_cast<int>(hInt.y)]!=0)break;
-                hInt.x+=delta.x;
-                hInt.y+=unit.y;
-            }
+                delta.y=0;
 
-            if (p.z>M_PI/2&&p.z<M_PI) {
-                vInt.x+=1;
-            } else if (p.z>M_PI&&p.z<3*M_PI/2) {
-                vInt.x+=1;
-                hInt.y+=1;
-            } else if (p.z>3*M_PI/2&&p.z<2*M_PI) {
-                hInt.y+=1;
+                unit.x=1;
+            } else
+                if (abs(p.z-M_PI/2)<0.0000001) { //90
+                    hDist.x=0;
+                    hDist.y=1-internalPos.y;
+
+                    delta.x=0;
+
+                    unit.y=1;
+                } else if (abs(p.z-M_PI)<0.0000001) { //180
+                    vDist.x=-internalPos.x;
+                    vDist.y=0;
+
+                    delta.y=0;
+
+                    unit.x=-1;
+                } else if (abs(p.z-3*M_PI/2)<0.0000001) { //270
+                    hDist.x=0;
+                    hDist.y=-internalPos.y;
+
+                    delta.x=0;
+
+                    unit.y=-1;
+                } else if (p.z>M_PI/2&&p.z<M_PI) { //2nd quadrant cw
+                    vDist.x=-internalPos.x; //-ve
+                    vDist.y=-vDist.x*tan(M_PI-p.z); //+ve
+                    hDist.y=1-internalPos.y; //+ve
+                    hDist.x=-hDist.y*1/tan(M_PI-p.z); //-ve
+
+                    delta.x=-1.f/tan(M_PI-p.z);
+                    delta.y=tan(M_PI-p.z);
+
+                    unit.x=-1;
+                    unit.y=1;
+                } else if (p.z>M_PI&&p.z<3*M_PI/2) { //3rd quadrant cw
+                    vDist.x=-internalPos.x; //-ve
+                    vDist.y=vDist.x*tan(p.z-M_PI); //-ve
+                    hDist.y=-internalPos.y; //-ve
+                    hDist.x=hDist.y*1/tan(p.z-M_PI); //-ve
+
+                    delta.x=-1.f/tan(p.z-M_PI);
+                    delta.y=-tan(p.z-M_PI);
+
+                    unit.x=-1;
+                    unit.y=-1;
+                } else if (p.z>3*M_PI/2&&p.z<2*M_PI) { //4th quadrant cw
+                    vDist.x=1-internalPos.x; //+ve
+                    vDist.y=-vDist.x*tan(2*M_PI-p.z); //-ve
+                    hDist.y=-internalPos.y; //-ve
+                    hDist.x=-hDist.y*1/tan(2*M_PI-p.z); //+ve
+
+                    delta.x=1.f/tan(2*M_PI-p.z);
+                    delta.y=-tan(2*M_PI-p.z);
+
+                    unit.x=1;
+                    unit.y=-1;
+                } else { //1st quadrant cw
+                    vDist.x=1-internalPos.x;
+                    vDist.y=vDist.x*tan(p.z);
+                    hDist.y=1-internalPos.y;
+                    hDist.x=hDist.y*1/tan(p.z);
+
+                    delta.x=1.f/tan(p.z);
+                    delta.y=tan(p.z);
+
+                    unit.x=1;
+                    unit.y=1;
+                }
+
+            if (abs(p.z-0)<0.0000001||abs(p.z-M_PI)<0.0000001||abs(p.z-2*M_PI)<0.0000001) { //0, 180, and 360
+                vInt.x=scaledPos.x+vDist.x;
+                vInt.y=scaledPos.y+vDist.y;
+                if (abs(p.z-M_PI)<0.0000001) { //180 adjustment
+                    vInt.x-=1;
+                }
+                while (true) {
+                    if (map[static_cast<int>(vInt.x)][static_cast<int>(vInt.y)]!=0)break;
+                    vInt.x+=unit.x;
+                    vInt.y+=delta.y;
+                }
+                if (abs(p.z-M_PI)<0.0000001) { //180 adjustment
+                    vInt.x+=1;
+                }
+                vDist.x=vInt.x-scaledPos.x;
+                vDist.y=vInt.y-scaledPos.y;
+                side[i]=1;
+            } else if (abs(p.z-M_PI/2)<0.0000001||abs(p.z-3*M_PI/2)<0.0000001) { //90 and 270
+                hInt.x=scaledPos.x+hDist.x;
+                hInt.y=scaledPos.y+hDist.y;
+                if (abs(p.z-3*M_PI/2)<0.0000001) { //270 adjustment
+                    hInt.y-=1;
+                }
+                while (true) {
+                    if (map[static_cast<int>(hInt.x)][static_cast<int>(hInt.y)]!=0)break;
+                    hInt.x+=delta.x;
+                    hInt.y+=unit.y;
+                }
+                if (abs(p.z-3*M_PI/2)<0.0000001) { //270 adjustment
+                    hInt.y+=1;
+                }
+                hDist.x=hInt.x-scaledPos.x;
+                hDist.y=hInt.y-scaledPos.y;
+                side[i]=0;
+            } else {
+                //first intercept positions
+                vInt.x=scaledPos.x+vDist.x;
+                vInt.y=scaledPos.y+vDist.y;
+                hInt.x=scaledPos.x+hDist.x;
+                hInt.y=scaledPos.y+hDist.y;
+
+                if (p.z>M_PI/2&&p.z<M_PI) { //2nd quadrant adjustment
+                    vInt.x-=1;
+                } else if (p.z>M_PI&&p.z<3*M_PI/2) { //3rd quadrant adjustment
+                    vInt.x-=1;
+                    hInt.y-=1;
+                } else if (p.z>3*M_PI/2&&p.z<2*M_PI) { //4th quadrant adjustment
+                    hInt.y-=1;
+                }
+
+                //checking all ver and hor intercepts separately
+                while (true) {
+                    if (map[static_cast<int>(vInt.x)][static_cast<int>(vInt.y)]!=0)break;
+                    vInt.x+=unit.x;
+                    vInt.y+=delta.y;
+                }
+                while (true) {
+                    if (map[static_cast<int>(hInt.x)][static_cast<int>(hInt.y)]!=0)break;
+                    hInt.x+=delta.x;
+                    hInt.y+=unit.y;
+                }
+
+                if (p.z>M_PI/2&&p.z<M_PI) {
+                    vInt.x+=1;
+                } else if (p.z>M_PI&&p.z<3*M_PI/2) {
+                    vInt.x+=1;
+                    hInt.y+=1;
+                } else if (p.z>3*M_PI/2&&p.z<2*M_PI) {
+                    hInt.y+=1;
+                }
+
+                //distance from position to intercept
+                vDist.x=vInt.x-scaledPos.x;
+                vDist.y=vInt.y-scaledPos.y;
+                hDist.x=hInt.x-scaledPos.x;
+                hDist.y=hInt.y-scaledPos.y;
+
+                //checking which hits first
+                sqrt(vDist.x*vDist.x+vDist.y*vDist.y)<sqrt(hDist.x*hDist.x+hDist.y*hDist.y) ? side[i]=1 : side[i]=0; //side=1 is ver
             }
+            if (side[i]==0) {
+                ray[i][1].position={600*hInt.x/8,600*hInt.y/8};
+            } else ray[i][1].position={600*vInt.x/8,600*vInt.y/8};
 
-            //distance from position to intercept
-            vDist.x=vInt.x-scaledPos.x;
-            vDist.y=vInt.y-scaledPos.y;
-            hDist.x=hInt.x-scaledPos.x;
-            hDist.y=hInt.y-scaledPos.y;
-
-            //checking which hits first
-            sqrt(vDist.x*vDist.x+vDist.y*vDist.y)<sqrt(hDist.x*hDist.x+hDist.y*hDist.y) ? side=1 : side=0; //side=1 is ver
+            rl[i]=sqrt(pow((ray[i][1].position.x-ray[i][0].position.x),2)+pow((ray[i][1].position.y-ray[i][0].position.y),2));
         }
-        if (side==0) {
-            ray[1].position={600*hInt.x/8,600*hInt.y/8};
-        } else ray[1].position={600*vInt.x/8,600*vInt.y/8};
+
+        for (int i=0;i<50;i++) {
+            side[i]==1 ? wall[i].setFillColor(sf::Color::Green) : wall[i].setFillColor(DarkGreen);
+            wall[i].setSize(sf::Vector2f(12, 30000/rl[i]));
+            wall[i].setPosition((637.5+i*12),300);
+            wall[i].setOrigin(37.5,wall[i].getSize().y/2);
+            //wall[i].setScale(1,(1/rl[i]));
+
+        }
 
         window.clear(sf::Color::Black);
         for(int i=0;i<8;i++) {
@@ -300,7 +386,10 @@ int main()
         }
         window.draw(grid);
         window.draw(player);
-        window.draw(ray);
+        for (int i=0;i<50;i++) {
+            window.draw(ray[i]);
+            window.draw(wall[i]);
+        }
         window.display();
     }
     return 0;
