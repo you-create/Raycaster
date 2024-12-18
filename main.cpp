@@ -367,7 +367,7 @@ int main()
 
         for (int i=0;i<50;i++) {
             side[i]==1 ? wall[i].setFillColor(sf::Color::Green) : wall[i].setFillColor(DarkGreen);
-            wall[i].setSize(sf::Vector2f(12, 30000/rl[i]));
+            wall[i].setSize(sf::Vector2f(12, (-rl[i]+500)));
             wall[i].setPosition((637.5+i*12),300);
             wall[i].setOrigin(37.5,wall[i].getSize().y/2);
             //wall[i].setScale(1,(1/rl[i]));
