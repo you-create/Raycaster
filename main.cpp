@@ -131,6 +131,8 @@ int main()
     sf::Vector2f delta; //how much each intercept moves
     sf::Vector2f unit; //1 or -1
 
+    float tempPZ{0};
+
     sf::Clock clock;
 
     while (window.isOpen())
@@ -145,21 +147,15 @@ int main()
                 window.close();
         }
 
-        //position settings
-        //x increases left->right, y increases up->down
+        //movement
         p.z=player.getRotation()*M_PI/180;
 
-        //movement
         //forwards
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W))
         {
             p.x+=cos(p.z)*100*dt.asSeconds();
             p.y+=sin(p.z)*100*dt.asSeconds();
             player.setPosition(p.x, p.y);
-            //ray[0].position = {p.x, p.y};
-            for (int i=0;i<50;i++) {
-                ray[i][0].position={static_cast<float>(p.x-sin(p.z)*(i-25)*2), static_cast<float>(p.y+cos(p.z)*(i-25)*2)};
-            }
         }
         //backwards
         else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S))
@@ -167,28 +163,20 @@ int main()
             p.x-=cos(p.z)*100*dt.asSeconds();
             p.y-=sin(p.z)*100*dt.asSeconds();
             player.setPosition(p.x, p.y);
-            //ray[0].position = {p.x, p.y};
-            for (int i=0;i<50;i++) {
-                ray[i][0].position={static_cast<float>(p.x-sin(p.z)*(i-25)*2), static_cast<float>(p.y+cos(p.z)*(i-25)*2)};
-            }
         }
         //rotate ccw
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A))
         {
             player.rotate(-3);
-            //ray[0].position = {p.x, p.y};
-            for (int i=0;i<50;i++) {
-                ray[i][0].position={static_cast<float>(p.x-sin(p.z)*(i-25)*2), static_cast<float>(p.y+cos(p.z)*(i-25)*2)};
-            }
         }
         //rotate cw
         else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D))
         {
             player.rotate(3);
-            //ray[0].position = {p.x, p.y};
-            for (int i=0;i<50;i++) {
-                ray[i][0].position={static_cast<float>(p.x-sin(p.z)*(i-25)*2), static_cast<float>(p.y+cos(p.z)*(i-25)*2)};
-            }
+        }
+        for (int i=0;i<50;i++) {
+            ray[i][0].position={p.x,p.y};
+            //ray[i][0].position={static_cast<float>(p.x-sin(p.z)*(i-25)*2), static_cast<float>(p.y+cos(p.z)*(i-25)*2)};
         }
 
         //algorithm
@@ -198,90 +186,92 @@ int main()
         }
 
         for (int i=0;i<50;i++) {
-            scaledPos={8*(p.x-sin(p.z)*(i-25)*2)/600,8*(p.y+cos(p.z)*(i-25)*2)/600}; //scaled position
-            //scaledPos={8*p.x/600,8*p.y/600}; //scaled position
+            tempPZ=p.z+(-25+i)*M_PI/180;
+            if (tempPZ<0) tempPZ=2*M_PI+tempPZ;
+            if (tempPZ>2*M_PI) tempPZ=tempPZ-2*M_PI;
+            //scaledPos={8*(p.x-sin(p.z)*(i-25)*2)/600,8*(p.y+cos(p.z)*(i-25)*2)/600}; //scaled position
+            scaledPos={8*p.x/600,8*p.y/600}; //scaled position
             truncatedPos={static_cast<int>(scaledPos.x),static_cast<int>(scaledPos.y)}; //scaled position cast to int (map use)
             internalPos={scaledPos.x-static_cast<float>(truncatedPos.x),scaledPos.y-static_cast<float>(truncatedPos.y)}; //internal position in square
 
-            if (abs(p.z-0)<0.0000001||abs(p.z-2*M_PI)<0.0000001) { //0 and 360
+            if (abs(tempPZ-0)<0.0001||abs(tempPZ-2*M_PI)<0.0001) { //0 and 360
                 vDist.x=1-internalPos.x;
                 vDist.y=0;
 
                 delta.y=0;
 
                 unit.x=1;
-            } else
-                if (abs(p.z-M_PI/2)<0.0000001) { //90
-                    hDist.x=0;
-                    hDist.y=1-internalPos.y;
+            } else if (abs(tempPZ-M_PI/2)<0.0001) { //90
+                hDist.x=0;
+                hDist.y=1-internalPos.y;
 
-                    delta.x=0;
+                delta.x=0;
 
-                    unit.y=1;
-                } else if (abs(p.z-M_PI)<0.0000001) { //180
-                    vDist.x=-internalPos.x;
-                    vDist.y=0;
+                unit.y=1;
+            } else if (abs(tempPZ-M_PI)<0.0001) { //180
+                vDist.x=-internalPos.x;
+                vDist.y=0;
 
-                    delta.y=0;
+                delta.y=0;
 
-                    unit.x=-1;
-                } else if (abs(p.z-3*M_PI/2)<0.0000001) { //270
-                    hDist.x=0;
-                    hDist.y=-internalPos.y;
+                unit.x=-1;
+            } else if (abs(tempPZ-3*M_PI/2)<0.0001) { //270
+                hDist.x=0;
+                hDist.y=-internalPos.y;
 
-                    delta.x=0;
+                delta.x=0;
 
-                    unit.y=-1;
-                } else if (p.z>M_PI/2&&p.z<M_PI) { //2nd quadrant cw
-                    vDist.x=-internalPos.x; //-ve
-                    vDist.y=-vDist.x*tan(M_PI-p.z); //+ve
-                    hDist.y=1-internalPos.y; //+ve
-                    hDist.x=-hDist.y*1/tan(M_PI-p.z); //-ve
+                unit.y=-1;
+            } else if (tempPZ>M_PI/2&&tempPZ<M_PI) { //2nd quadrant cw
+                vDist.x=-internalPos.x; //-ve
+                vDist.y=-vDist.x*tan(M_PI-tempPZ); //+ve
+                hDist.y=1-internalPos.y; //+ve
+                hDist.x=-hDist.y*1/tan(M_PI-tempPZ); //-ve
 
-                    delta.x=-1.f/tan(M_PI-p.z);
-                    delta.y=tan(M_PI-p.z);
+                delta.x=-1.f/tan(M_PI-tempPZ);
+                delta.y=tan(M_PI-tempPZ);
 
-                    unit.x=-1;
-                    unit.y=1;
-                } else if (p.z>M_PI&&p.z<3*M_PI/2) { //3rd quadrant cw
-                    vDist.x=-internalPos.x; //-ve
-                    vDist.y=vDist.x*tan(p.z-M_PI); //-ve
-                    hDist.y=-internalPos.y; //-ve
-                    hDist.x=hDist.y*1/tan(p.z-M_PI); //-ve
+                unit.x=-1;
+                unit.y=1;
+            } else if (tempPZ>M_PI&&tempPZ<3*M_PI/2) { //3rd quadrant cw
+                vDist.x=-internalPos.x; //-ve
+                vDist.y=vDist.x*tan(tempPZ-M_PI); //-ve
+                hDist.y=-internalPos.y; //-ve
+                hDist.x=hDist.y*1/tan(tempPZ-M_PI); //-ve
 
-                    delta.x=-1.f/tan(p.z-M_PI);
-                    delta.y=-tan(p.z-M_PI);
+                delta.x=-1.f/tan(tempPZ-M_PI);
+                delta.y=-tan(tempPZ-M_PI);
 
-                    unit.x=-1;
-                    unit.y=-1;
-                } else if (p.z>3*M_PI/2&&p.z<2*M_PI) { //4th quadrant cw
-                    vDist.x=1-internalPos.x; //+ve
-                    vDist.y=-vDist.x*tan(2*M_PI-p.z); //-ve
-                    hDist.y=-internalPos.y; //-ve
-                    hDist.x=-hDist.y*1/tan(2*M_PI-p.z); //+ve
+                unit.x=-1;
+                unit.y=-1;
+            } else if (tempPZ>3*M_PI/2&&tempPZ<2*M_PI) { //4th quadrant cw
+                vDist.x=1-internalPos.x; //+ve
+                vDist.y=-vDist.x*tan(2*M_PI-tempPZ); //-ve
+                hDist.y=-internalPos.y; //-ve
+                hDist.x=-hDist.y*1/tan(2*M_PI-tempPZ); //+ve
 
-                    delta.x=1.f/tan(2*M_PI-p.z);
-                    delta.y=-tan(2*M_PI-p.z);
+                delta.x=1.f/tan(2*M_PI-tempPZ);
+                delta.y=-tan(2*M_PI-tempPZ);
 
-                    unit.x=1;
-                    unit.y=-1;
-                } else { //1st quadrant cw
-                    vDist.x=1-internalPos.x;
-                    vDist.y=vDist.x*tan(p.z);
-                    hDist.y=1-internalPos.y;
-                    hDist.x=hDist.y*1/tan(p.z);
+                unit.x=1;
+                unit.y=-1;
+            } else { //1st quadrant cw
+                vDist.x=1-internalPos.x;
+                vDist.y=vDist.x*tan(tempPZ);
+                hDist.y=1-internalPos.y;
+                hDist.x=hDist.y*1/tan(tempPZ);
 
-                    delta.x=1.f/tan(p.z);
-                    delta.y=tan(p.z);
+                delta.x=1.f/tan(tempPZ);
+                delta.y=tan(tempPZ);
 
-                    unit.x=1;
-                    unit.y=1;
-                }
+                unit.x=1;
+                unit.y=1;
+            }
 
-            if (abs(p.z-0)<0.0000001||abs(p.z-M_PI)<0.0000001||abs(p.z-2*M_PI)<0.0000001) { //0, 180, and 360
+            if (abs(tempPZ-0)<0.0001||abs(tempPZ-M_PI)<0.0001||abs(tempPZ-2*M_PI)<0.0001) { //0, 180, and 360
                 vInt.x=scaledPos.x+vDist.x;
                 vInt.y=scaledPos.y+vDist.y;
-                if (abs(p.z-M_PI)<0.0000001) { //180 adjustment
+                if (abs(tempPZ-M_PI)<0.0001) { //180 adjustment
                     vInt.x-=1;
                 }
                 while (true) {
@@ -289,16 +279,16 @@ int main()
                     vInt.x+=unit.x;
                     vInt.y+=delta.y;
                 }
-                if (abs(p.z-M_PI)<0.0000001) { //180 adjustment
+                if (abs(tempPZ-M_PI)<0.0001) { //180 adjustment
                     vInt.x+=1;
                 }
                 vDist.x=vInt.x-scaledPos.x;
                 vDist.y=vInt.y-scaledPos.y;
                 side[i]=1;
-            } else if (abs(p.z-M_PI/2)<0.0000001||abs(p.z-3*M_PI/2)<0.0000001) { //90 and 270
+            } else if (abs(tempPZ-M_PI/2)<0.0001||abs(tempPZ-3*M_PI/2)<0.0001) { //90 and 270
                 hInt.x=scaledPos.x+hDist.x;
                 hInt.y=scaledPos.y+hDist.y;
-                if (abs(p.z-3*M_PI/2)<0.0000001) { //270 adjustment
+                if (abs(tempPZ-3*M_PI/2)<0.0001) { //270 adjustment
                     hInt.y-=1;
                 }
                 while (true) {
@@ -306,25 +296,26 @@ int main()
                     hInt.x+=delta.x;
                     hInt.y+=unit.y;
                 }
-                if (abs(p.z-3*M_PI/2)<0.0000001) { //270 adjustment
+                if (abs(tempPZ-3*M_PI/2)<0.0001) { //270 adjustment
                     hInt.y+=1;
                 }
                 hDist.x=hInt.x-scaledPos.x;
                 hDist.y=hInt.y-scaledPos.y;
                 side[i]=0;
             } else {
+
                 //first intercept positions
                 vInt.x=scaledPos.x+vDist.x;
                 vInt.y=scaledPos.y+vDist.y;
                 hInt.x=scaledPos.x+hDist.x;
                 hInt.y=scaledPos.y+hDist.y;
 
-                if (p.z>M_PI/2&&p.z<M_PI) { //2nd quadrant adjustment
+                if (tempPZ>M_PI/2&&tempPZ<M_PI) { //2nd quadrant adjustment
                     vInt.x-=1;
-                } else if (p.z>M_PI&&p.z<3*M_PI/2) { //3rd quadrant adjustment
+                } else if (tempPZ>M_PI&&tempPZ<3*M_PI/2) { //3rd quadrant adjustment
                     vInt.x-=1;
                     hInt.y-=1;
-                } else if (p.z>3*M_PI/2&&p.z<2*M_PI) { //4th quadrant adjustment
+                } else if (tempPZ>3*M_PI/2&&tempPZ<2*M_PI) { //4th quadrant adjustment
                     hInt.y-=1;
                 }
 
@@ -335,17 +326,17 @@ int main()
                     vInt.y+=delta.y;
                 }
                 while (true) {
-                    if (map[static_cast<int>(hInt.x)][static_cast<int>(hInt.y)]!=0)break;
+                    if (map[static_cast<int>(hInt.x)][static_cast<int>(hInt.y)]!=0||hInt.x<0||hInt.x>7||hInt.y<0||hInt.y>7)break;
                     hInt.x+=delta.x;
                     hInt.y+=unit.y;
                 }
 
-                if (p.z>M_PI/2&&p.z<M_PI) {
+                if (tempPZ>M_PI/2&&tempPZ<M_PI) {
                     vInt.x+=1;
-                } else if (p.z>M_PI&&p.z<3*M_PI/2) {
+                } else if (tempPZ>M_PI&&tempPZ<3*M_PI/2) {
                     vInt.x+=1;
                     hInt.y+=1;
-                } else if (p.z>3*M_PI/2&&p.z<2*M_PI) {
+                } else if (tempPZ>3*M_PI/2&&tempPZ<2*M_PI) {
                     hInt.y+=1;
                 }
 
@@ -371,7 +362,6 @@ int main()
             wall[i].setPosition((637.5+i*12),300);
             wall[i].setOrigin(37.5,wall[i].getSize().y/2);
             //wall[i].setScale(1,(1/rl[i]));
-
         }
 
         window.clear(sf::Color::Black);
