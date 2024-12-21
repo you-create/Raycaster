@@ -55,9 +55,10 @@ int main()
     player.setPoint(2, sf::Vector2f(p.x-20,p.y+5.36f));
     player.setFillColor(sf::Color::Green);
     player.setOrigin(p.x,p.y);
+    int speed=100;
 
     //ray
-    constexpr int fov=50; //field of view in degrees
+    constexpr int fov=60; //field of view in degrees
     std::array<sf::VertexArray, fov> ray;
     for (int i=0;i<fov;i++) {
         ray[i]=sf::VertexArray(sf::PrimitiveType::Lines,2);
@@ -97,15 +98,19 @@ int main()
 
         //keyboard control
         p.z=player.getRotation()*M_PI/180;
+        speed=100;
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) { //forwards
-            p.x+=cos(p.z)*100*dt.asSeconds(); p.y+=sin(p.z)*100*dt.asSeconds();
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {speed*=3;}
+            p.x+=cos(p.z)*speed*dt.asSeconds(); p.y+=sin(p.z)*speed*dt.asSeconds();
+
         } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) { //backwards
-            p.x-=cos(p.z)*100*dt.asSeconds(); p.y-=sin(p.z)*100*dt.asSeconds();}
+            p.x-=cos(p.z)*speed*dt.asSeconds(); p.y-=sin(p.z)*speed*dt.asSeconds();}
         player.setPosition(p.x, p.y);
+        speed=100;
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) { //rotate ccw
-            player.setRotation(player.getRotation()-200*dt.asSeconds());
+            player.setRotation(player.getRotation()-2*speed*dt.asSeconds());
         } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) { //rotate cw
-            player.setRotation(player.getRotation()+200*dt.asSeconds());}
+            player.setRotation(player.getRotation()+2*speed*dt.asSeconds());}
 
         for (int i=0;i<fov;i++) {
             ray[i][0].position={p.x,p.y};
