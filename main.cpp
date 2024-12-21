@@ -9,8 +9,9 @@ int main()
     sf::RenderWindow window(sf::VideoMode(1200, 600), "Ray-Caster", sf::Style::Titlebar | sf::Style::Close);
 
     //colours
-    sf::Color Grey(180, 180, 180);
-    sf::Color DarkGreen(70, 200, 40);
+    sf::Color grey(180,180,180);
+    sf::Color green(0,255,0);
+    //sf::Color greenDark(0,205,0);
 
     //making grid
     sf::VertexArray grid(sf::Lines, 40);
@@ -33,7 +34,7 @@ int main()
     //tiles
     sf::RectangleShape tile;
     tile.setSize(sf::Vector2f(75, 75));
-    tile.setFillColor(Grey);
+    tile.setFillColor(grey);
     //map
     int map[8][8] = {
         {1,1,1,1,1,1,1,1},
@@ -53,7 +54,7 @@ int main()
     player.setPoint(0, sf::Vector2f(p.x,p.y));//drawing as triangle
     player.setPoint(1, sf::Vector2f(p.x-20,p.y-5.36f));
     player.setPoint(2, sf::Vector2f(p.x-20,p.y+5.36f));
-    player.setFillColor(sf::Color::Green);
+    player.setFillColor(green);
     player.setOrigin(p.x,p.y);
     int speed=100;
 
@@ -89,6 +90,7 @@ int main()
         window.setFramerateLimit(60);
         sf::Time dt=clock.restart(); //delta time
 
+        //commands to close
         sf::Event event;
         while (window.pollEvent(event))
         {
@@ -166,7 +168,10 @@ int main()
         }
 
         for (int i=0;i<fov;i++) {
-            side[i]==1 ? wall[i].setFillColor(sf::Color::Green) : wall[i].setFillColor(DarkGreen);
+            if (side[i]==1)green.g-=30;
+            green.g-=rl[i]*20/fov;
+            wall[i].setFillColor(green);
+            green.g=255;
             wall[i].setSize(sf::Vector2f(600/fov, 30000/(rl[i]*cos(abs(-(fov/2)+i)*M_PI/180))));
             wall[i].setPosition((637.5+i*(600/fov)),300);
             wall[i].setOrigin(37.5,wall[i].getSize().y/2);
