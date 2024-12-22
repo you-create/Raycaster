@@ -4,37 +4,36 @@
 //#include <iostream>
 #include <cmath>
 
-int main()
-{
+//fix: minor fisheye (esp at high fov)
+//add: textures, map loading/gen, up/down, gameplay
+
+int main() {
     sf::RenderWindow window(sf::VideoMode(1200, 600), "Ray-Caster", sf::Style::Titlebar | sf::Style::Close);
 
     //colours
     sf::Color grey(180,180,180);
     sf::Color green(0,255,0);
-    //sf::Color greenDark(0,205,0);
 
-    //making grid
+    //grid
     sf::VertexArray grid(sf::Lines, 40);
     float gridX{0};
     float gridY{0};
-    //vertical lines
     for (int i=0;i<18; i++) {
         grid[i].position = sf::Vector2f(gridX, 0);
         i++;
         grid[i].position = sf::Vector2f(gridX, 600);
         gridX += 75;
     }
-    //horizontal lines
     for (int i=20;i<40;i++) {
         grid[i].position = sf::Vector2f(0, gridY);
         i++;
         grid[i].position = sf::Vector2f(600, gridY);
         gridY += 75;
     }
-    //tiles
     sf::RectangleShape tile;
     tile.setSize(sf::Vector2f(75, 75));
     tile.setFillColor(grey);
+
     //map
     int map[8][8] = {
         {1,1,1,1,1,1,1,1},
@@ -51,12 +50,13 @@ int main()
     sf::Vector3f p(300.f,300.f,0.f); //position and direction (x, y, theta in rad)
     sf::ConvexShape player;
     player.setPointCount(3);
-    player.setPoint(0, sf::Vector2f(p.x,p.y));//drawing as triangle
+    player.setPoint(0, sf::Vector2f(p.x,p.y)); //drawing as triangle
     player.setPoint(1, sf::Vector2f(p.x-20,p.y-5.36f));
     player.setPoint(2, sf::Vector2f(p.x-20,p.y+5.36f));
-    player.setFillColor(green);
+    player.setFillColor(sf::Color::Green);
     player.setOrigin(p.x,p.y);
-    int speed=100;
+    constexpr int speed=100; //modify this one
+    int setSpeed; //used for logic
 
     //ray
     constexpr int fov=60; //field of view in degrees
@@ -72,66 +72,52 @@ int main()
     std::array<sf::RectangleShape, fov> wall;
 
     //algorithm use
-    std::array<int, fov> side; //used for algo and to select wall colour
-
+    std::array<int, fov> side; //used for logic and to select wall colour (1 is ver, 0 is hor)
     sf::Vector2f scaledPos; //scaled position
-    sf::Vector2i truncatedPos; //scaled position truncated to int
-    sf::Vector2f internalPos; //scaled position - truncated position (position within current square)
-    sf::Vector2f n; //normalised direction vector
-    sf::Vector2f distX;
-    sf::Vector2f distY;
-    sf::Vector2f unit; //1 or -1
-
+    sf::Vector2i truncatedPos; //truncated scaled position
+    sf::Vector2f internalPos; //internal position in square
+    sf::Vector2f n; //normalised direction vector (max length 1)
+    sf::Vector2f distX; //x: dist to first ver intercept, y: dist between consecutive ver intercepts
+    sf::Vector2f distY; //x: dist to first hor intercept, y: dist between consecutive hor intercepts
+    sf::Vector2f unit; //x: 1 or -1 step for ver intercept, y: 1 or -1 step for hor intercept
 
     sf::Clock clock;
 
-    while (window.isOpen())
-    {
+    //collision
+    constexpr float tol=10; //px from wall where collision activates
+
+    while (window.isOpen()) {
+
+        //fps and time setup
         window.setFramerateLimit(60);
         sf::Time dt=clock.restart(); //delta time
 
         //commands to close
         sf::Event event;
-        while (window.pollEvent(event))
-        {
+        while (window.pollEvent(event)) {
             if (event.type==sf::Event::Closed) window.close();
             if (event.type==sf::Event::KeyPressed&&event.key.code==sf::Keyboard::Escape) window.close();
         }
 
-        //keyboard control
+        //keyboard control setup
         p.z=player.getRotation()*M_PI/180;
-        speed=100;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) { //forwards
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {speed*=3;}
-            p.x+=cos(p.z)*speed*dt.asSeconds(); p.y+=sin(p.z)*speed*dt.asSeconds();
+        setSpeed=speed;
 
-        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) { //backwards
-            p.x-=cos(p.z)*speed*dt.asSeconds(); p.y-=sin(p.z)*speed*dt.asSeconds();}
-        player.setPosition(p.x, p.y);
-        speed=100;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) { //rotate ccw
-            player.setRotation(player.getRotation()-2*speed*dt.asSeconds());
-        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) { //rotate cw
-            player.setRotation(player.getRotation()+2*speed*dt.asSeconds());}
-
-        for (int i=0;i<fov;i++) {
-            ray[i][0].position={p.x,p.y};
-        }
-
-        //DDA algo. checks grid+1 in direction of next nearest intercept
+        //DDA algo. checks grid+1 in direction of next nearest intercept for wall
         for (int i=0;i<fov;i++) {
             n.x=cos(p.z+(-(fov/2)+i)*M_PI/180);
             n.y=sin(p.z+(-(fov/2)+i)*M_PI/180);
-            if (n.y==0)n.y+=0.00001; //avoiding division by zero
+            if (n.y==0)n.y=0.00001; //avoiding division by zero
 
-            scaledPos={8*p.x/600,8*p.y/600}; //scaled position
-            truncatedPos={static_cast<int>(scaledPos.x),static_cast<int>(scaledPos.y)}; //scaled position cast to int (map use)
-            internalPos={scaledPos.x-static_cast<float>(truncatedPos.x),scaledPos.y-static_cast<float>(truncatedPos.y)}; //internal position in square
+            scaledPos={8*p.x/600,8*p.y/600};
+            truncatedPos={static_cast<int>(scaledPos.x),static_cast<int>(scaledPos.y)};
+            internalPos={scaledPos.x-static_cast<float>(truncatedPos.x),
+            scaledPos.y-static_cast<float>(truncatedPos.y)};
 
             if (n.x>0) {
-                distX.x=(1-internalPos.x)/n.x; //dist to first ver intercept
+                distX.x=(1-internalPos.x)/n.x;
                 unit.x=1;
-                distX.y=1/n.x; //dist between consecutive ver intercepts
+                distX.y=1/n.x;
             } else {
                 distX.x=internalPos.x/n.x;
                 unit.x=-1;
@@ -142,13 +128,13 @@ int main()
                 unit.y=1;
                 distY.y=1/n.y;
             } else {
-                distY.x=internalPos.y/n.y; //dist to first hor intercept
+                distY.x=internalPos.y/n.y;
                 unit.y=-1;
-                distY.y=1/n.y; //dist between consecutive hor intercepts
+                distY.y=1/n.y;
             }
 
             while (true) {
-                if (abs(distX.x)<abs(distY.x)) { //distance to next ver intercept shorter
+                if (abs(distX.x)<abs(distY.x)) { //true if distance to next ver intercept shorter
                     side[i]=1;
                     distX.x+=distX.y;
                     truncatedPos.x+=unit.x;
@@ -160,14 +146,19 @@ int main()
                 if (map[truncatedPos.x][truncatedPos.y]!=0)break;
             }
 
+            //ray calculation
+            ray[i][0].position={p.x,p.y};
             if (side[i]==1) {
                 ray[i][1].position={p.x+n.x*600*abs(distX.x-distX.y)/8,p.y+n.y*600*abs(distX.x-distX.y)/8};
             } else ray[i][1].position={p.x+n.x*600*abs(distY.x-distY.y)/8,p.y+n.y*600*abs(distY.x-distY.y)/8};
+            ray[i][0].position={p.x,p.y};
+            rl[i]=sqrt(pow((ray[i][1].position.x-ray[i][0].position.x),2)
+            +pow((ray[i][1].position.y-ray[i][0].position.y),2));
 
-            rl[i]=sqrt(pow((ray[i][1].position.x-ray[i][0].position.x),2)+pow((ray[i][1].position.y-ray[i][0].position.y),2));
-        }
+            //collision detection
+            if (i==(fov/2)&&rl[i]<tol)setSpeed=0;
 
-        for (int i=0;i<fov;i++) {
+            //wall setup
             if (side[i]==1)green.g-=30;
             green.g-=rl[i]*20/fov;
             wall[i].setFillColor(green);
@@ -177,6 +168,21 @@ int main()
             wall[i].setOrigin(37.5,wall[i].getSize().y/2);
         }
 
+        //keyboard control
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) { //forwards
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {setSpeed*=3;} //zoomies
+            p.x+=cos(p.z)*setSpeed*dt.asSeconds(); p.y+=sin(p.z)*setSpeed*dt.asSeconds();
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) { //backwards
+            p.x-=cos(p.z)*setSpeed*dt.asSeconds(); p.y-=sin(p.z)*setSpeed*dt.asSeconds();
+        }
+        player.setPosition(p.x, p.y);
+        setSpeed=speed;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) { //rotate ccw
+            player.setRotation(player.getRotation()-2*setSpeed*dt.asSeconds());
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) { //rotate cw
+            player.setRotation(player.getRotation()+2*setSpeed*dt.asSeconds());}
+
+        //rendering
         window.clear(sf::Color::Black);
         for(int i=0;i<8;i++) {
             for(int j=0;j<8;j++){
@@ -198,6 +204,4 @@ int main()
     }
     return 0;
 }
-
-//collisions, shadows, textures, map loading/gen, up/down, gameplay
 
