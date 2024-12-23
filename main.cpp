@@ -2,6 +2,7 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 #include <cmath>
+#include <fstream>
 #include <iostream>
 
 //fix: fisheye, collision when reversing, button toggles
@@ -35,31 +36,24 @@ int main() {
     //     {1,0,0,0,0,0,0,0,0,1},
     //     {1,1,1,1,1,1,1,1,1,1},
     // };
+
+
     //map
     constexpr int row=20;
     constexpr int column=20;
-    int map[row][column] = {
-        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,3,3,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-    };
+    int map[row][column];
+    int rowCounter=0;
+    int columnCounter=0;
+    std::ifstream mapFileIn("map.txt");
+    if(!mapFileIn){throw std::runtime_error("error: open file for input failed!\n");}
+    while (!mapFileIn.eof()) {
+        int i;
+        mapFileIn>>i;
+        map[rowCounter][columnCounter]=i;
+        columnCounter++;
+        if (columnCounter%column==0){columnCounter=0;rowCounter++;}
+    }
+    mapFileIn.close();
 
     //grid
     int numPoints=2*row+2*column+2;
@@ -95,8 +89,7 @@ int main() {
     int setSpeed; //used for logic
 
     //ray
-
-    constexpr int res=200;
+    constexpr int res=200; //resolution
     constexpr float coefficient=0.3;
     constexpr int fov=coefficient*res; //field of view in degrees
     std::array<sf::VertexArray, res> ray;
@@ -307,6 +300,15 @@ int main() {
             //std::cout<<(1/dt.asSeconds())<<'\n'; //fps
         }
     }
+    //saving map
+    std::ofstream mapFileOut("map.txt");
+    if(!mapFileOut){throw std::runtime_error("error: open file for output failed!\n");}
+    for(int i=0;i<row;i++) {
+        for(int j=0;j<column;j++){
+            mapFileOut<<map[i][j]<<'\n';
+        }
+    }
+    mapFileOut.close();
     return 0;
 }
 
