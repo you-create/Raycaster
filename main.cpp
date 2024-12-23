@@ -4,55 +4,89 @@
 //#include <iostream>
 #include <cmath>
 
-//fix: minor fisheye (esp at high fov)
-//add: textures, map loading/gen, up/down, gameplay
+//fix: minor fisheye (esp at high fov), collision when reversing
+//add: textures, map loading/gen, up/down, gameplay, gamify
 
 int main() {
-    sf::RenderWindow window(sf::VideoMode(1200, 600), "Ray-Caster", sf::Style::Titlebar | sf::Style::Close);
+    constexpr int screenW=1600;
+    constexpr int screenH=800;
+
+    sf::RenderWindow window(sf::VideoMode(screenW, screenH), "Ray-Caster", sf::Style::Titlebar | sf::Style::Close);
 
     //colours
     sf::Color grey(180,180,180);
     sf::Color green(0,255,0);
 
-    //grid
-    sf::VertexArray grid(sf::Lines, 40);
-    float gridX{0};
-    float gridY{0};
-    for (int i=0;i<18; i++) {
-        grid[i].position = sf::Vector2f(gridX, 0);
-        i++;
-        grid[i].position = sf::Vector2f(gridX, 600);
-        gridX += 75;
-    }
-    for (int i=20;i<40;i++) {
-        grid[i].position = sf::Vector2f(0, gridY);
-        i++;
-        grid[i].position = sf::Vector2f(600, gridY);
-        gridY += 75;
-    }
-    sf::RectangleShape tile;
-    tile.setSize(sf::Vector2f(75, 75));
-    tile.setFillColor(grey);
+    // //map
+    // constexpr int row=8;
+    // constexpr int column=8;
+    // int map[row][column] = {
+    //     {1,1,1,1,1,1,1,1},
+    //     {1,0,0,0,0,0,0,1},
+    //     {1,0,0,0,0,1,0,1},
+    //     {1,1,1,0,0,0,0,1},
+    //     {1,0,0,0,0,1,0,1},
+    //     {1,0,0,0,0,1,0,1},
+    //     {1,0,0,0,0,1,0,1},
+    //     {1,1,1,1,1,1,1,1},
+    // };
 
-    //map
-    int map[8][8] = {
-        {1,1,1,1,1,1,1,1},
-        {1,0,0,0,0,0,0,1},
-        {1,0,0,0,0,1,0,1},
-        {1,1,1,0,0,0,0,1},
-        {1,0,0,0,0,1,0,1},
-        {1,0,0,0,0,1,0,1},
-        {1,0,0,0,0,1,0,1},
-        {1,1,1,1,1,1,1,1},
+    // constexpr int row=4; //hor
+    // constexpr int column=8; //ver
+    // int map[row][column] = {
+    //     {1,1,1,1,1,1,1,1},
+    //     {1,0,0,0,0,0,0,1},
+    //     {1,0,0,0,0,1,0,1},
+    //     {1,1,1,1,1,1,1,1},
+    //     // {1,0,0,0,0,1,0,1,1},
+    //     // {1,0,0,0,0,1,0,1,1},
+    //     // {1,0,0,0,0,1,0,1,1},
+    //     // {1,1,1,1,1,1,1,1,1},
+    // };
+
+    constexpr int row=10;
+    constexpr int column=10;
+    int map[row][column] = {
+        {1,1,1,1,1,1,1,1,1,1},
+        {1,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,1,0,0,0,1},
+        {1,1,1,0,0,0,0,0,1,1},
+        {1,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,1,1,1},
+        {1,0,0,0,0,1,0,0,0,1},
+        {1,1,0,1,1,1,1,0,1,1},
+        {1,0,0,0,0,1,0,0,0,1},
+        {1,1,1,1,1,1,1,1,1,1},
     };
 
+    //grid
+    int numPoints=2*row+2*column+2;
+    sf::VertexArray grid(sf::Lines, numPoints);
+    float gridX=0;
+    float gridY=0;
+    for (int i=0;i<2*column+2;i++) { //ver
+        grid[i].position=sf::Vector2f(gridX,0);
+        i++;
+        grid[i].position=sf::Vector2f(gridX,screenH);
+        gridX+=screenW/(2*column);
+    }
+    for (int i=2*column+2;i<numPoints;i++) { //hor
+        grid[i].position=sf::Vector2f(0,gridY);
+        i++;
+        grid[i].position=sf::Vector2f(screenW/2,gridY);
+        gridY+=screenH/row;
+    }
+    sf::RectangleShape tile;
+    tile.setSize(sf::Vector2f(screenW/(2*column), screenH/row));
+    tile.setFillColor(grey);
+
     //player
-    sf::Vector3f p(300.f,300.f,0.f); //position and direction (x, y, theta in rad)
+    sf::Vector3f p(screenW/4,screenH/2,0); //position and direction (x, y, theta in rad)
     sf::ConvexShape player;
     player.setPointCount(3);
     player.setPoint(0, sf::Vector2f(p.x,p.y)); //drawing as triangle
-    player.setPoint(1, sf::Vector2f(p.x-20,p.y-5.36f));
-    player.setPoint(2, sf::Vector2f(p.x-20,p.y+5.36f));
+    player.setPoint(1, sf::Vector2f(p.x-20,p.y-5.36));
+    player.setPoint(2, sf::Vector2f(p.x-20,p.y+5.36));
     player.setFillColor(sf::Color::Green);
     player.setOrigin(p.x,p.y);
     constexpr int speed=100; //modify this one
@@ -109,7 +143,7 @@ int main() {
             n.y=sin(p.z+(-(fov/2)+i)*M_PI/180);
             if (n.y==0)n.y=0.00001; //avoiding division by zero
 
-            scaledPos={8*p.x/600,8*p.y/600};
+            scaledPos={column*p.x/(screenW/2),row*p.y/screenH};
             truncatedPos={static_cast<int>(scaledPos.x),static_cast<int>(scaledPos.y)};
             internalPos={scaledPos.x-static_cast<float>(truncatedPos.x),
             scaledPos.y-static_cast<float>(truncatedPos.y)};
@@ -143,14 +177,16 @@ int main() {
                     distY.x+=distY.y;
                     truncatedPos.y+=unit.y;
                 }
-                if (map[truncatedPos.x][truncatedPos.y]!=0)break;
+                if (map[truncatedPos.y][truncatedPos.x]!=0)break;
             }
 
             //ray calculation
             ray[i][0].position={p.x,p.y};
             if (side[i]==1) {
-                ray[i][1].position={p.x+n.x*600*abs(distX.x-distX.y)/8,p.y+n.y*600*abs(distX.x-distX.y)/8};
-            } else ray[i][1].position={p.x+n.x*600*abs(distY.x-distY.y)/8,p.y+n.y*600*abs(distY.x-distY.y)/8};
+                ray[i][1].position={p.x+n.x*(screenW/2)*abs(distX.x-distX.y)/column,
+                p.y+n.y*screenH*abs(distX.x-distX.y)/row};
+            } else ray[i][1].position={p.x+n.x*(screenW/2)*abs(distY.x-distY.y)/column,
+                p.y+n.y*screenH*abs(distY.x-distY.y)/row};
             ray[i][0].position={p.x,p.y};
             rl[i]=sqrt(pow((ray[i][1].position.x-ray[i][0].position.x),2)
             +pow((ray[i][1].position.y-ray[i][0].position.y),2));
@@ -163,9 +199,9 @@ int main() {
             green.g-=rl[i]*20/fov;
             wall[i].setFillColor(green);
             green.g=255;
-            wall[i].setSize(sf::Vector2f(600/fov, 30000/(rl[i]*cos(abs(-(fov/2)+i)*M_PI/180))));
-            wall[i].setPosition((637.5+i*(600/fov)),300);
-            wall[i].setOrigin(37.5,wall[i].getSize().y/2);
+            wall[i].setSize(sf::Vector2f((screenW/2)/fov, 30000/(rl[i]*cos(abs(-(fov/2)+i)*M_PI/180))));
+            wall[i].setPosition(((screenW/2)+(screenW/(2*column))+i*((screenW/2)/fov)),(screenH/2));
+            wall[i].setOrigin((screenW/(2*column)),wall[i].getSize().y/2);
         }
 
         //keyboard control
@@ -184,11 +220,11 @@ int main() {
 
         //rendering
         window.clear(sf::Color::Black);
-        for(int i=0;i<8;i++) {
-            for(int j=0;j<8;j++){
+        for(int i=0;i<row;i++) {
+            for(int j=0;j<column;j++){
                 if(map[i][j] == 1)
                 {
-                    tile.setPosition(static_cast<float>(i)*75,static_cast<float>(j)*75);
+                    tile.setPosition(j*screenW/(2*column),i*screenH/row);
                     window.draw(tile);
                 }
             }
