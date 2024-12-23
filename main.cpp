@@ -15,7 +15,10 @@ int main() {
 
     //colours
     sf::Color grey(180,180,180);
-    sf::Color green(0,255,0);
+    sf::Color red(255,0,0); //1
+    sf::Color green(0,255,0); //2
+    sf::Color blue(0,0,255); //3
+    sf::Color generic(255,255,255);
 
     // //map
     // constexpr int row=10;
@@ -39,12 +42,12 @@ int main() {
         {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
         {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
         {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,3,3,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
         {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
         {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
         {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
         {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
@@ -144,9 +147,26 @@ int main() {
                 sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) menu=false;
 
             //level editing
-            if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&menu==true) {
+            if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&
+                event.type==sf::Event::KeyPressed&&
+                event.key.code==sf::Keyboard::Num1&&
+                menu==true) {
                 map[static_cast<int>(row*sf::Mouse::getPosition(window).y/screenH)]
                 [static_cast<int>(column*sf::Mouse::getPosition(window).x/screenW)]=1;
+            }
+            if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&
+                event.type==sf::Event::KeyPressed&&
+                event.key.code==sf::Keyboard::Num2&&
+                menu==true) {
+                map[static_cast<int>(row*sf::Mouse::getPosition(window).y/screenH)]
+                [static_cast<int>(column*sf::Mouse::getPosition(window).x/screenW)]=2;
+            }
+            if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&
+                event.type==sf::Event::KeyPressed&&
+                event.key.code==sf::Keyboard::Num3&&
+                menu==true) {
+                map[static_cast<int>(row*sf::Mouse::getPosition(window).y/screenH)]
+                [static_cast<int>(column*sf::Mouse::getPosition(window).x/screenW)]=3;
             }
             if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&
                 sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)&&menu==true) {
@@ -217,10 +237,27 @@ int main() {
             if (i==fov&&rl[i]<tol)setSpeed=0;
 
             //wall setup
-            if (side[i]==1)green.g-=30;
-            green.g-=rl[i]*20/res;
-            wall[i].setFillColor(green);
-            green.g=255;
+            switch (map[truncatedPos.y][truncatedPos.x]) {
+                case 1:
+                    generic=red;
+                    if (side[i]==1)generic.r-=30;
+                    break;
+                case 2:
+                    generic=green;
+                    if (side[i]==1)generic.g-=30;
+                    break;
+                case 3:
+                    generic=blue;
+                    if (side[i]==1)generic.b-=30;
+                    break;
+                default:
+                    generic=green;
+            }
+            generic.r-=rl[i]*30/res;
+            generic.g-=rl[i]*30/res;
+            generic.b-=rl[i]*30/res;
+            wall[i].setFillColor(generic);
+            generic.r=255;generic.g=255;generic.b=255;
             side[i]==1 ? wallDist=(distX.x-distX.y) : wallDist=(distY.x-distY.y);
             //+1 in x to account for division errors, y is inverse of dist to camera plane
             wall[i].setSize(sf::Vector2f(1+screenW/res, screenH/wallDist));
@@ -233,14 +270,15 @@ int main() {
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {setSpeed*=3;} //zoomies
             p.x+=cos(p.z)*setSpeed*dt.asSeconds(); p.y+=sin(p.z)*setSpeed*dt.asSeconds();
         } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) { //backwards
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {setSpeed*=3;} //zoomies
             p.x-=cos(p.z)*setSpeed*dt.asSeconds(); p.y-=sin(p.z)*setSpeed*dt.asSeconds();
         }
         player.setPosition(p.x, p.y);
         setSpeed=speed;
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) { //rotate ccw
-            player.setRotation(player.getRotation()-2*setSpeed*dt.asSeconds());
+            player.setRotation(player.getRotation()-1.8*setSpeed*dt.asSeconds());
         } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) { //rotate cw
-            player.setRotation(player.getRotation()+2*setSpeed*dt.asSeconds());}
+            player.setRotation(player.getRotation()+1.8*setSpeed*dt.asSeconds());}
 
         if (menu==true) {
             window.clear(sf::Color::Black);
