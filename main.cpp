@@ -4,7 +4,7 @@
 #include <cmath>
 #include <iostream>
 
-//fix: minor fisheye (esp at high fov), collision when reversing
+//fix: fisheye, collision when reversing, button toggles
 //add: textures, map loading/gen, up/down, gameplay, gamify
 
 int main() {                                                                               
@@ -17,20 +17,45 @@ int main() {
     sf::Color grey(180,180,180);
     sf::Color green(0,255,0);
 
+    // //map
+    // constexpr int row=10;
+    // constexpr int column=10;
+    // int map[row][column] = {
+    //     {1,1,1,1,1,1,1,1,1,1},
+    //     {1,0,0,0,0,0,0,0,0,1},
+    //     {1,0,0,0,0,0,0,0,0,1},
+    //     {1,0,0,0,0,0,0,0,0,1},
+    //     {1,0,0,0,0,0,0,0,0,1},
+    //     {1,0,0,0,0,0,0,0,0,1},
+    //     {1,0,0,0,0,0,0,0,0,1},
+    //     {1,0,0,0,0,0,0,0,0,1},
+    //     {1,0,0,0,0,0,0,0,0,1},
+    //     {1,1,1,1,1,1,1,1,1,1},
+    // };
     //map
-    constexpr int row=10;
-    constexpr int column=10;
+    constexpr int row=20;
+    constexpr int column=20;
     int map[row][column] = {
-        {1,1,1,1,1,1,1,1,1,1},
-        {1,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,0,0,1},
-        {1,1,1,1,1,1,1,1,1,1},
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
+        {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
     };
 
     //grid
@@ -67,20 +92,23 @@ int main() {
     int setSpeed; //used for logic
 
     //ray
-    constexpr int fov=100; //field of view in degrees
-    std::array<sf::VertexArray, fov> ray;
-    for (int i=0;i<fov;i++) {
+
+    constexpr int res=200;
+    constexpr float coefficient=0.3;
+    constexpr int fov=coefficient*res; //field of view in degrees
+    std::array<sf::VertexArray, res> ray;
+    for (int i=0;i<res;i++) {
         ray[i]=sf::VertexArray(sf::PrimitiveType::Lines,2);
         ray[i][0].color=sf::Color::Red;
         ray[i][1].color=sf::Color::Red;
     }
-    std::array<float, fov> rl;
+    std::array<float, res> rl;
 
     //wall rectangles
-    std::array<sf::RectangleShape, fov> wall;
+    std::array<sf::RectangleShape, res> wall;
 
     //algorithm use
-    std::array<int, fov> side; //used for logic and to select wall colour (1 is ver, 0 is hor)
+    std::array<int, res> side; //used for logic and to select wall colour (1 is ver, 0 is hor)
     sf::Vector2f scaledPos; //scaled position
     sf::Vector2i truncatedPos; //truncated scaled position
     sf::Vector2f internalPos; //internal position in square
@@ -88,6 +116,7 @@ int main() {
     sf::Vector2f distX; //x: dist to first ver intercept, y: dist between consecutive ver intercepts
     sf::Vector2f distY; //x: dist to first hor intercept, y: dist between consecutive hor intercepts
     sf::Vector2f unit; //x: 1 or -1 step for ver intercept, y: 1 or -1 step for hor intercept
+    float wallDist; //dist to wall from camera plane
 
     sf::Clock clock;
 
@@ -110,8 +139,8 @@ int main() {
             if (event.type==sf::Event::KeyPressed&&event.key.code==sf::Keyboard::Escape) window.close();
 
             //menu
-            if (event.type==sf::Event::KeyPressed&&event.key.code==sf::Keyboard::M) menu=true;
-            if (event.type==sf::Event::KeyPressed&&event.key.code==sf::Keyboard::M&&
+            if (event.type==sf::Event::KeyPressed&&event.key.code==sf::Keyboard::E) menu=true;
+            if (event.type==sf::Event::KeyPressed&&event.key.code==sf::Keyboard::E&&
                 sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) menu=false;
 
             //level editing
@@ -131,9 +160,9 @@ int main() {
         setSpeed=speed;
 
         //DDA algo. checks grid+1 in direction of next nearest intercept for wall
-        for (int i=0;i<fov;i++) {
-            n.x=cos(p.z+(-(fov/2)+i)*M_PI/180);
-            n.y=sin(p.z+(-(fov/2)+i)*M_PI/180);
+        for (int i=0;i<res;i++) {
+            n.x=cos(p.z+(-(fov/2)+i*coefficient)*M_PI/180);
+            n.y=sin(p.z+(-(fov/2)+i*coefficient)*M_PI/180);
             if (n.y==0)n.y=0.00001; //avoiding division by zero
 
             scaledPos={column*p.x/screenW,row*p.y/screenH};
@@ -185,15 +214,17 @@ int main() {
             +pow((ray[i][1].position.y-ray[i][0].position.y),2));
 
             //collision detection
-            if (i==(fov/2)&&rl[i]<tol)setSpeed=0;
+            if (i==fov&&rl[i]<tol)setSpeed=0;
 
             //wall setup
             if (side[i]==1)green.g-=30;
-            green.g-=rl[i]*20/fov;
+            green.g-=rl[i]*20/res;
             wall[i].setFillColor(green);
             green.g=255;
-            wall[i].setSize(sf::Vector2f(1+screenW/fov, 30000/(rl[i]*cos(abs(-(fov/2)+i)*M_PI/180))));
-            wall[i].setPosition((screenW/column+i*screenW/fov),(screenH/2));
+            side[i]==1 ? wallDist=(distX.x-distX.y) : wallDist=(distY.x-distY.y);
+            //+1 in x to account for division errors, y is inverse of dist to camera plane
+            wall[i].setSize(sf::Vector2f(1+screenW/res, screenH/wallDist));
+            wall[i].setPosition((screenW/column+i*screenW/res),(screenH/2));
             wall[i].setOrigin(screenW/column,wall[i].getSize().y/2);
         }
 
@@ -215,7 +246,7 @@ int main() {
             window.clear(sf::Color::Black);
             for(int i=0;i<row;i++) {
                 for(int j=0;j<column;j++){
-                    if(map[i][j] == 1)
+                    if(map[i][j]!=0)
                     {
                         tile.setPosition(j*screenW/column,i*screenH/row);
                         window.draw(tile);
@@ -224,14 +255,14 @@ int main() {
             }
             window.draw(grid);
             window.draw(player);
-            for (int i=0;i<fov;i++) {
+            for (int i=0;i<res;i++) {
                 window.draw(ray[i]);
             }
             window.display();
         } else {
             //rendering
             window.clear(sf::Color::Black);
-            for (int i=0;i<fov;i++) {
+            for (int i=0;i<res;i++) {
                 window.draw(wall[i]);
             }
             window.display();
