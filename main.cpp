@@ -5,8 +5,8 @@
 #include <fstream>
 #include <iostream>
 
-//fix: fisheye, collision when reversing, button toggles
-//add: textures, map loading/gen, up/down, gameplay, gamify
+//fix: fisheye, collision when reversing, button toggles, level editor
+//add: textures, up/down, gameplay, gamify, tall/short
 
 int main() {                                                                               
     constexpr int screenW=900;
@@ -230,32 +230,42 @@ int main() {
             if (i==fov&&rl[i]<tol)setSpeed=0;
 
             //wall setup
+            side[i]==1 ? wallDist=(abs(distX.x)-abs(distX.y)) : wallDist=(abs(distY.x)-abs(distY.y));
             switch (map[truncatedPos.y][truncatedPos.x]) {
                 case 1:
                     generic=red;
                     if (side[i]==1)generic.r-=30;
+                    wall[i].setSize(sf::Vector2f(1+screenW/res, 2.5*screenH/wallDist)); //change coefficient for height
+                    wall[i].setOrigin(screenW/column,wall[i].getSize().y);
+                    wall[i].setPosition((screenW/column+i*screenW/res),screenH/2+screenH/(2*wallDist));
                     break;
                 case 2:
                     generic=green;
                     if (side[i]==1)generic.g-=30;
+                    wall[i].setSize(sf::Vector2f(1+screenW/res, screenH/wallDist));
+                    wall[i].setOrigin(screenW/column,wall[i].getSize().y/2);
+                    wall[i].setPosition((screenW/column+i*screenW/res),(screenH/2));
                     break;
                 case 3:
                     generic=blue;
                     if (side[i]==1)generic.b-=30;
+                    wall[i].setSize(sf::Vector2f(1+screenW/res, screenH/wallDist));
+                    wall[i].setOrigin(screenW/column,wall[i].getSize().y/2);
+                    wall[i].setPosition((screenW/column+i*screenW/res),(screenH/2));
                     break;
                 default:
                     generic=green;
+                    if (side[i]==1)generic.g-=30;
+                    wall[i].setSize(sf::Vector2f(1+screenW/res, screenH/wallDist));
+                    wall[i].setOrigin(screenW/column,wall[i].getSize().y/2);
+                    wall[i].setPosition((screenW/column+i*screenW/res),(screenH/2));
+                    break;
             }
             generic.r-=rl[i]*30/res;
             generic.g-=rl[i]*30/res;
             generic.b-=rl[i]*30/res;
             wall[i].setFillColor(generic);
             generic.r=255;generic.g=255;generic.b=255;
-            side[i]==1 ? wallDist=(distX.x-distX.y) : wallDist=(distY.x-distY.y);
-            //+1 in x to account for division errors, y is inverse of dist to camera plane
-            wall[i].setSize(sf::Vector2f(1+screenW/res, screenH/wallDist));
-            wall[i].setPosition((screenW/column+i*screenW/res),(screenH/2));
-            wall[i].setOrigin(screenW/column,wall[i].getSize().y/2);
         }
 
         //keyboard control
