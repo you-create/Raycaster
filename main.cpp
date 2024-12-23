@@ -1,61 +1,35 @@
 #include <array>
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
-//#include <iostream>
 #include <cmath>
+#include <iostream>
 
 //fix: minor fisheye (esp at high fov), collision when reversing
 //add: textures, map loading/gen, up/down, gameplay, gamify
 
-int main() {
-    constexpr int screenW=1600;
-    constexpr int screenH=800;
-
+int main() {                                                                               
+    constexpr int screenW=900;
+    constexpr int screenH=600;
+                                                                                                                       
     sf::RenderWindow window(sf::VideoMode(screenW, screenH), "Ray-Caster", sf::Style::Titlebar | sf::Style::Close);
 
     //colours
     sf::Color grey(180,180,180);
     sf::Color green(0,255,0);
 
-    // //map
-    // constexpr int row=8;
-    // constexpr int column=8;
-    // int map[row][column] = {
-    //     {1,1,1,1,1,1,1,1},
-    //     {1,0,0,0,0,0,0,1},
-    //     {1,0,0,0,0,1,0,1},
-    //     {1,1,1,0,0,0,0,1},
-    //     {1,0,0,0,0,1,0,1},
-    //     {1,0,0,0,0,1,0,1},
-    //     {1,0,0,0,0,1,0,1},
-    //     {1,1,1,1,1,1,1,1},
-    // };
-
-    // constexpr int row=4; //hor
-    // constexpr int column=8; //ver
-    // int map[row][column] = {
-    //     {1,1,1,1,1,1,1,1},
-    //     {1,0,0,0,0,0,0,1},
-    //     {1,0,0,0,0,1,0,1},
-    //     {1,1,1,1,1,1,1,1},
-    //     // {1,0,0,0,0,1,0,1,1},
-    //     // {1,0,0,0,0,1,0,1,1},
-    //     // {1,0,0,0,0,1,0,1,1},
-    //     // {1,1,1,1,1,1,1,1,1},
-    // };
-
+    //map
     constexpr int row=10;
     constexpr int column=10;
     int map[row][column] = {
         {1,1,1,1,1,1,1,1,1,1},
         {1,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,1,0,0,0,1},
-        {1,1,1,0,0,0,0,0,1,1},
         {1,0,0,0,0,0,0,0,0,1},
-        {1,0,0,0,0,0,0,1,1,1},
-        {1,0,0,0,0,1,0,0,0,1},
-        {1,1,0,1,1,1,1,0,1,1},
-        {1,0,0,0,0,1,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,0,0,1},
         {1,1,1,1,1,1,1,1,1,1},
     };
 
@@ -68,20 +42,20 @@ int main() {
         grid[i].position=sf::Vector2f(gridX,0);
         i++;
         grid[i].position=sf::Vector2f(gridX,screenH);
-        gridX+=screenW/(2*column);
+        gridX+=screenW/column;
     }
     for (int i=2*column+2;i<numPoints;i++) { //hor
         grid[i].position=sf::Vector2f(0,gridY);
         i++;
-        grid[i].position=sf::Vector2f(screenW/2,gridY);
+        grid[i].position=sf::Vector2f(screenW,gridY);
         gridY+=screenH/row;
     }
     sf::RectangleShape tile;
-    tile.setSize(sf::Vector2f(screenW/(2*column), screenH/row));
+    tile.setSize(sf::Vector2f(screenW/column, screenH/row));
     tile.setFillColor(grey);
 
     //player
-    sf::Vector3f p(screenW/4,screenH/2,0); //position and direction (x, y, theta in rad)
+    sf::Vector3f p(screenW/2,screenH/2,0); //position and direction (x, y, theta in rad)
     sf::ConvexShape player;
     player.setPointCount(3);
     player.setPoint(0, sf::Vector2f(p.x,p.y)); //drawing as triangle
@@ -93,7 +67,7 @@ int main() {
     int setSpeed; //used for logic
 
     //ray
-    constexpr int fov=60; //field of view in degrees
+    constexpr int fov=100; //field of view in degrees
     std::array<sf::VertexArray, fov> ray;
     for (int i=0;i<fov;i++) {
         ray[i]=sf::VertexArray(sf::PrimitiveType::Lines,2);
@@ -117,6 +91,8 @@ int main() {
 
     sf::Clock clock;
 
+    bool menu=false;
+
     //collision
     constexpr float tol=10; //px from wall where collision activates
 
@@ -126,11 +102,28 @@ int main() {
         window.setFramerateLimit(60);
         sf::Time dt=clock.restart(); //delta time
 
-        //commands to close
+        //keyboard commands
         sf::Event event;
         while (window.pollEvent(event)) {
+            //close
             if (event.type==sf::Event::Closed) window.close();
             if (event.type==sf::Event::KeyPressed&&event.key.code==sf::Keyboard::Escape) window.close();
+
+            //menu
+            if (event.type==sf::Event::KeyPressed&&event.key.code==sf::Keyboard::M) menu=true;
+            if (event.type==sf::Event::KeyPressed&&event.key.code==sf::Keyboard::M&&
+                sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) menu=false;
+
+            //level editing
+            if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&menu==true) {
+                map[static_cast<int>(row*sf::Mouse::getPosition(window).y/screenH)]
+                [static_cast<int>(column*sf::Mouse::getPosition(window).x/screenW)]=1;
+            }
+            if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&
+                sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)&&menu==true) {
+                map[static_cast<int>(row*sf::Mouse::getPosition(window).y/screenH)]
+                [static_cast<int>(column*sf::Mouse::getPosition(window).x/screenW)]=0;
+            }
         }
 
         //keyboard control setup
@@ -143,7 +136,7 @@ int main() {
             n.y=sin(p.z+(-(fov/2)+i)*M_PI/180);
             if (n.y==0)n.y=0.00001; //avoiding division by zero
 
-            scaledPos={column*p.x/(screenW/2),row*p.y/screenH};
+            scaledPos={column*p.x/screenW,row*p.y/screenH};
             truncatedPos={static_cast<int>(scaledPos.x),static_cast<int>(scaledPos.y)};
             internalPos={scaledPos.x-static_cast<float>(truncatedPos.x),
             scaledPos.y-static_cast<float>(truncatedPos.y)};
@@ -183,9 +176,9 @@ int main() {
             //ray calculation
             ray[i][0].position={p.x,p.y};
             if (side[i]==1) {
-                ray[i][1].position={p.x+n.x*(screenW/2)*abs(distX.x-distX.y)/column,
+                ray[i][1].position={p.x+n.x*screenW*abs(distX.x-distX.y)/column,
                 p.y+n.y*screenH*abs(distX.x-distX.y)/row};
-            } else ray[i][1].position={p.x+n.x*(screenW/2)*abs(distY.x-distY.y)/column,
+            } else ray[i][1].position={p.x+n.x*screenW*abs(distY.x-distY.y)/column,
                 p.y+n.y*screenH*abs(distY.x-distY.y)/row};
             ray[i][0].position={p.x,p.y};
             rl[i]=sqrt(pow((ray[i][1].position.x-ray[i][0].position.x),2)
@@ -199,9 +192,9 @@ int main() {
             green.g-=rl[i]*20/fov;
             wall[i].setFillColor(green);
             green.g=255;
-            wall[i].setSize(sf::Vector2f((screenW/2)/fov, 30000/(rl[i]*cos(abs(-(fov/2)+i)*M_PI/180))));
-            wall[i].setPosition(((screenW/2)+(screenW/(2*column))+i*((screenW/2)/fov)),(screenH/2));
-            wall[i].setOrigin((screenW/(2*column)),wall[i].getSize().y/2);
+            wall[i].setSize(sf::Vector2f(1+screenW/fov, 30000/(rl[i]*cos(abs(-(fov/2)+i)*M_PI/180))));
+            wall[i].setPosition((screenW/column+i*screenW/fov),(screenH/2));
+            wall[i].setOrigin(screenW/column,wall[i].getSize().y/2);
         }
 
         //keyboard control
@@ -218,25 +211,32 @@ int main() {
         } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) { //rotate cw
             player.setRotation(player.getRotation()+2*setSpeed*dt.asSeconds());}
 
-        //rendering
-        window.clear(sf::Color::Black);
-        for(int i=0;i<row;i++) {
-            for(int j=0;j<column;j++){
-                if(map[i][j] == 1)
-                {
-                    tile.setPosition(j*screenW/(2*column),i*screenH/row);
-                    window.draw(tile);
+        if (menu==true) {
+            window.clear(sf::Color::Black);
+            for(int i=0;i<row;i++) {
+                for(int j=0;j<column;j++){
+                    if(map[i][j] == 1)
+                    {
+                        tile.setPosition(j*screenW/column,i*screenH/row);
+                        window.draw(tile);
+                    }
                 }
             }
+            window.draw(grid);
+            window.draw(player);
+            for (int i=0;i<fov;i++) {
+                window.draw(ray[i]);
+            }
+            window.display();
+        } else {
+            //rendering
+            window.clear(sf::Color::Black);
+            for (int i=0;i<fov;i++) {
+                window.draw(wall[i]);
+            }
+            window.display();
+            //std::cout<<(1/dt.asSeconds())<<'\n'; //fps
         }
-        window.draw(grid);
-        window.draw(player);
-        for (int i=0;i<fov;i++) {
-            window.draw(ray[i]);
-            window.draw(wall[i]);
-        }
-        window.display();
-        //std::cout<<(1/dt.asSeconds())<<'\n'; //fps
     }
     return 0;
 }
