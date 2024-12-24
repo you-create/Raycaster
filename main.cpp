@@ -8,39 +8,32 @@
 //fix: fisheye, collision when reversing, button toggles, level editor
 //add: textures, up/down, gameplay, gamify, tall/short
 
-int main() {                                                                               
-    constexpr int screenW=900;
+int main() {
+    //settings
+    constexpr int screenW=900; //in px
     constexpr int screenH=600;
-                                                                                                                       
-    sf::RenderWindow window(sf::VideoMode(screenW, screenH), "Ray-Caster", sf::Style::Titlebar | sf::Style::Close);
+    constexpr int row=20; //number of rows in map
+    constexpr int column=20; //number of columns in map
+    constexpr int shadowStrength=15;
+    constexpr int speed=100; //player movement speed
+    constexpr int res=200; //resolution
+    constexpr float coefficient=0.3;
+    constexpr int fov=coefficient*res; //field of view in degrees
+    constexpr float wallHeight1=2; //heights of respective wall types
+    constexpr float wallHeight2=1;
+    constexpr float wallHeight3=1;
+    constexpr float tol=10; //px from wall where collision activates
 
     //colours
     sf::Color grey(180,180,180);
+    sf::Color lightGrey(240,240,240);
+    sf::Color darkGrey(140,140,140);
     sf::Color red(255,0,0); //1
     sf::Color green(0,255,0); //2
     sf::Color blue(0,0,255); //3
     sf::Color generic(255,255,255);
 
-    // //map
-    // constexpr int row=10;
-    // constexpr int column=10;
-    // int map[row][column] = {
-    //     {1,1,1,1,1,1,1,1,1,1},
-    //     {1,0,0,0,0,0,0,0,0,1},
-    //     {1,0,0,0,0,0,0,0,0,1},
-    //     {1,0,0,0,0,0,0,0,0,1},
-    //     {1,0,0,0,0,0,0,0,0,1},
-    //     {1,0,0,0,0,0,0,0,0,1},
-    //     {1,0,0,0,0,0,0,0,0,1},
-    //     {1,0,0,0,0,0,0,0,0,1},
-    //     {1,0,0,0,0,0,0,0,0,1},
-    //     {1,1,1,1,1,1,1,1,1,1},
-    // };
-
-
     //map
-    constexpr int row=20;
-    constexpr int column=20;
     int map[row][column];
     int rowCounter=0;
     int columnCounter=0;
@@ -76,6 +69,15 @@ int main() {
     tile.setSize(sf::Vector2f(screenW/column, screenH/row));
     tile.setFillColor(grey);
 
+    //ceiling and floor
+    sf::RectangleShape ceiling;
+    ceiling.setSize(sf::Vector2f(screenW,screenH/2));
+    ceiling.setFillColor(lightGrey);
+    sf::RectangleShape floor;
+    floor.setSize(sf::Vector2f(screenW,screenH/2));
+    floor.setPosition(sf::Vector2f(0,screenH/2));
+    floor.setFillColor(darkGrey);
+
     //player
     sf::Vector3f p(screenW/2,screenH/2,0); //position and direction (x, y, theta in rad)
     sf::ConvexShape player;
@@ -85,13 +87,9 @@ int main() {
     player.setPoint(2, sf::Vector2f(p.x-20,p.y+5.36));
     player.setFillColor(sf::Color::Green);
     player.setOrigin(p.x,p.y);
-    constexpr int speed=100; //modify this one
     int setSpeed; //used for logic
 
     //ray
-    constexpr int res=200; //resolution
-    constexpr float coefficient=0.3;
-    constexpr int fov=coefficient*res; //field of view in degrees
     std::array<sf::VertexArray, res> ray;
     for (int i=0;i<res;i++) {
         ray[i]=sf::VertexArray(sf::PrimitiveType::Lines,2);
@@ -99,9 +97,6 @@ int main() {
         ray[i][1].color=sf::Color::Red;
     }
     std::array<float, res> rl;
-
-    //wall rectangles
-    std::array<sf::RectangleShape, res> wall;
 
     //algorithm use
     std::array<int, res> side; //used for logic and to select wall colour (1 is ver, 0 is hor)
@@ -114,12 +109,11 @@ int main() {
     sf::Vector2f unit; //x: 1 or -1 step for ver intercept, y: 1 or -1 step for hor intercept
     float wallDist; //dist to wall from camera plane
 
+    //misc
+    sf::RenderWindow window(sf::VideoMode(screenW, screenH), "Ray-Caster", sf::Style::Titlebar | sf::Style::Close);
     sf::Clock clock;
-
     bool menu=false;
-
-    //collision
-    constexpr float tol=10; //px from wall where collision activates
+    std::array<sf::RectangleShape, res> wall;
 
     while (window.isOpen()) {
 
@@ -234,36 +228,36 @@ int main() {
             switch (map[truncatedPos.y][truncatedPos.x]) {
                 case 1:
                     generic=red;
-                    if (side[i]==1)generic.r-=30;
-                    wall[i].setSize(sf::Vector2f(1+screenW/res, 2.5*screenH/wallDist)); //change coefficient for height
+                    if (side[i]==1)generic.r-=(2*shadowStrength);
+                    wall[i].setSize(sf::Vector2f(1+screenW/res, wallHeight1*screenH/wallDist));
                     wall[i].setOrigin(screenW/column,wall[i].getSize().y);
                     wall[i].setPosition((screenW/column+i*screenW/res),screenH/2+screenH/(2*wallDist));
                     break;
                 case 2:
                     generic=green;
-                    if (side[i]==1)generic.g-=30;
+                    if (side[i]==1)generic.g-=(2*shadowStrength);
                     wall[i].setSize(sf::Vector2f(1+screenW/res, screenH/wallDist));
                     wall[i].setOrigin(screenW/column,wall[i].getSize().y/2);
                     wall[i].setPosition((screenW/column+i*screenW/res),(screenH/2));
                     break;
                 case 3:
                     generic=blue;
-                    if (side[i]==1)generic.b-=30;
+                    if (side[i]==1)generic.b-=(2*shadowStrength);
                     wall[i].setSize(sf::Vector2f(1+screenW/res, screenH/wallDist));
                     wall[i].setOrigin(screenW/column,wall[i].getSize().y/2);
                     wall[i].setPosition((screenW/column+i*screenW/res),(screenH/2));
                     break;
                 default:
                     generic=green;
-                    if (side[i]==1)generic.g-=30;
+                    if (side[i]==1)generic.g-=(2*shadowStrength);
                     wall[i].setSize(sf::Vector2f(1+screenW/res, screenH/wallDist));
                     wall[i].setOrigin(screenW/column,wall[i].getSize().y/2);
                     wall[i].setPosition((screenW/column+i*screenW/res),(screenH/2));
                     break;
             }
-            generic.r-=rl[i]*30/res;
-            generic.g-=rl[i]*30/res;
-            generic.b-=rl[i]*30/res;
+            generic.r-=rl[i]*shadowStrength/res;
+            generic.g-=rl[i]*shadowStrength/res;
+            generic.b-=rl[i]*shadowStrength/res;
             wall[i].setFillColor(generic);
             generic.r=255;generic.g=255;generic.b=255;
         }
@@ -303,6 +297,8 @@ int main() {
         } else {
             //rendering
             window.clear(sf::Color::Black);
+            window.draw(ceiling);
+            window.draw(floor);
             for (int i=0;i<res;i++) {
                 window.draw(wall[i]);
             }
