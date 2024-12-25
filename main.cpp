@@ -1,27 +1,32 @@
-#include <array>
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
+
+#include <array>
+#include <stack>
+#include <queue>
 #include <cmath>
 #include <fstream>
 #include <iostream>
 
-//fix: fisheye, collision when reversing, button toggles, level editor
-//add: textures, up/down, gameplay, gamify, tall/short
+
+//fix: fisheye, collision when reversing, button toggles, level editor, tall/short visibility
+//add: textures, up/down, gameplay, gamify
 
 int main() {
     //settings
+    constexpr bool testFPS=false; //if true prints max fps
     constexpr int screenW=900; //in px
     constexpr int screenH=600;
     constexpr int row=20; //number of rows in map
     constexpr int column=20; //number of columns in map
-    constexpr int shadowStrength=15;
+    constexpr int shadowStrength=50;
     constexpr int speed=100; //player movement speed
     constexpr int res=200; //resolution
     constexpr float coefficient=0.3;
     constexpr int fov=coefficient*res; //field of view in degrees
     constexpr float wallHeight1=2; //heights of respective wall types
     constexpr float wallHeight2=1;
-    constexpr float wallHeight3=1;
+    constexpr float wallHeight3=0.7;
     constexpr float tol=10; //px from wall where collision activates
 
     //colours
@@ -96,10 +101,10 @@ int main() {
         ray[i][0].color=sf::Color::Red;
         ray[i][1].color=sf::Color::Red;
     }
-    std::array<float, res> rl;
 
     //algorithm use
-    std::array<int, res> side; //used for logic and to select wall colour (1 is ver, 0 is hor)
+    //std::array<int, res> side; //used for logic and to select wall colour (1 is ver, 0 is hor)
+    int side;
     sf::Vector2f scaledPos; //scaled position
     sf::Vector2i truncatedPos; //truncated scaled position
     sf::Vector2f internalPos; //internal position in square
@@ -108,17 +113,25 @@ int main() {
     sf::Vector2f distY; //x: dist to first hor intercept, y: dist between consecutive hor intercepts
     sf::Vector2f unit; //x: 1 or -1 step for ver intercept, y: 1 or -1 step for hor intercept
     float wallDist; //dist to wall from camera plane
+    struct rayInfo { //info on each hit of each ray (multiple for dif square types)
+        int id; //hit type
+        int side;
+        float distX; //distX to hit
+        float distY; //distY to hit
+    };
+    std::stack<rayInfo> renderStack; //remembers order of hits to then render in reverse
+    //std::array<std::queue<float>, res> rl; //ray length (each has stack storing hits for dif square types)
 
     //misc
     sf::RenderWindow window(sf::VideoMode(screenW, screenH), "Ray-Caster", sf::Style::Titlebar | sf::Style::Close);
     sf::Clock clock;
     bool menu=false;
-    std::array<sf::RectangleShape, res> wall;
+    std::queue<sf::RectangleShape> wall;
+    float wallHeight;
 
     while (window.isOpen()) {
-
         //fps and time setup
-        window.setFramerateLimit(60);
+        if (testFPS==false)window.setFramerateLimit(60);
         sf::Time dt=clock.restart(); //delta time
 
         //keyboard commands
@@ -196,70 +209,82 @@ int main() {
                 distY.y=1/n.y;
             }
 
+            //ray casting loop
             while (true) {
                 if (abs(distX.x)<abs(distY.x)) { //true if distance to next ver intercept shorter
-                    side[i]=1;
+                    side=1;
                     distX.x+=distX.y;
                     truncatedPos.x+=unit.x;
                 } else {
-                    side[i]=0;
+                    side=0;
                     distY.x+=distY.y;
                     truncatedPos.y+=unit.y;
                 }
-                if (map[truncatedPos.y][truncatedPos.x]!=0)break;
+                if (map[truncatedPos.y][truncatedPos.x]==1) {
+                    renderStack.push({map[truncatedPos.y][truncatedPos.x],side,distX.x,distY.x});
+                    break;
+                }
+                if (map[truncatedPos.y][truncatedPos.x]!=0) {
+                    renderStack.push({map[truncatedPos.y][truncatedPos.x],side,distX.x,distY.x});
+                }
             }
 
             //ray calculation
             ray[i][0].position={p.x,p.y};
-            if (side[i]==1) {
+            if (renderStack.top().side==1) {
                 ray[i][1].position={p.x+n.x*screenW*abs(distX.x-distX.y)/column,
                 p.y+n.y*screenH*abs(distX.x-distX.y)/row};
             } else ray[i][1].position={p.x+n.x*screenW*abs(distY.x-distY.y)/column,
                 p.y+n.y*screenH*abs(distY.x-distY.y)/row};
             ray[i][0].position={p.x,p.y};
-            rl[i]=sqrt(pow((ray[i][1].position.x-ray[i][0].position.x),2)
-            +pow((ray[i][1].position.y-ray[i][0].position.y),2));
+
+            //rl[i].push(sqrt(pow((ray[i][1].position.x-ray[i][0].position.x),2)
+            // +pow((ray[i][1].position.y-ray[i][0].position.y),2)));
 
             //collision detection
-            if (i==fov&&rl[i]<tol)setSpeed=0;
+            //if (i==fov&&rl[i]<tol)setSpeed=0;
 
+            std::cout<<'\n';
             //wall setup
-            side[i]==1 ? wallDist=(abs(distX.x)-abs(distX.y)) : wallDist=(abs(distY.x)-abs(distY.y));
-            switch (map[truncatedPos.y][truncatedPos.x]) {
-                case 1:
-                    generic=red;
-                    if (side[i]==1)generic.r-=(2*shadowStrength);
-                    wall[i].setSize(sf::Vector2f(1+screenW/res, wallHeight1*screenH/wallDist));
-                    wall[i].setOrigin(screenW/column,wall[i].getSize().y);
-                    wall[i].setPosition((screenW/column+i*screenW/res),screenH/2+screenH/(2*wallDist));
-                    break;
-                case 2:
-                    generic=green;
-                    if (side[i]==1)generic.g-=(2*shadowStrength);
-                    wall[i].setSize(sf::Vector2f(1+screenW/res, screenH/wallDist));
-                    wall[i].setOrigin(screenW/column,wall[i].getSize().y/2);
-                    wall[i].setPosition((screenW/column+i*screenW/res),(screenH/2));
-                    break;
-                case 3:
-                    generic=blue;
-                    if (side[i]==1)generic.b-=(2*shadowStrength);
-                    wall[i].setSize(sf::Vector2f(1+screenW/res, screenH/wallDist));
-                    wall[i].setOrigin(screenW/column,wall[i].getSize().y/2);
-                    wall[i].setPosition((screenW/column+i*screenW/res),(screenH/2));
-                    break;
-                default:
-                    generic=green;
-                    if (side[i]==1)generic.g-=(2*shadowStrength);
-                    wall[i].setSize(sf::Vector2f(1+screenW/res, screenH/wallDist));
-                    wall[i].setOrigin(screenW/column,wall[i].getSize().y/2);
-                    wall[i].setPosition((screenW/column+i*screenW/res),(screenH/2));
-                    break;
+            while (!renderStack.empty()) {
+                renderStack.top().side==1 ? wallDist=(abs(renderStack.top().distX)-abs(distX.y)) :
+                wallDist=(abs(renderStack.top().distY)-abs(distY.y));
+                switch (renderStack.top().id) {
+                    case 1:
+                        generic=red;
+                        if (renderStack.top().side==1)generic.r-=(0.3*shadowStrength);
+                        wallHeight=wallHeight1;
+                        break;
+                    case 2:
+                        generic=green;
+                        if (renderStack.top().side==1)generic.g-=(0.3*shadowStrength);
+                        wallHeight=wallHeight2;
+                        break;
+                    case 3:
+                        generic=blue;
+                        if (renderStack.top().side==1)generic.b-=(0.3*shadowStrength);
+                        wallHeight=wallHeight3;
+                        break;
+                    default:
+                        generic=green;
+                        if (renderStack.top().side==1)generic.g-=(0.3*shadowStrength);
+                        wallHeight=1;
+                        break;
+                }
+                std::cout<<wallDist<<'\n';
+                generic.r-=wallDist*wallDist*shadowStrength/res;
+                generic.g-=wallDist*wallDist*shadowStrength/res;
+                generic.b-=wallDist*wallDist*shadowStrength/res;
+                sf::RectangleShape rect;
+                rect.setFillColor(generic);
+                generic.r=255;generic.g=255;generic.b=255;
+                rect.setSize(sf::Vector2f(1+screenW/res, wallHeight*screenH/wallDist));
+                rect.setOrigin(screenW/column,rect.getSize().y);
+                rect.setPosition((screenW/column+i*screenW/res),screenH/2+screenH/(2*wallDist));
+                wall.push(rect);
+
+                renderStack.pop();
             }
-            generic.r-=rl[i]*shadowStrength/res;
-            generic.g-=rl[i]*shadowStrength/res;
-            generic.b-=rl[i]*shadowStrength/res;
-            wall[i].setFillColor(generic);
-            generic.r=255;generic.g=255;generic.b=255;
         }
 
         //keyboard control
@@ -299,11 +324,12 @@ int main() {
             window.clear(sf::Color::Black);
             window.draw(ceiling);
             window.draw(floor);
-            for (int i=0;i<res;i++) {
-                window.draw(wall[i]);
+            while (!wall.empty()) {
+                window.draw(wall.front());
+                wall.pop();
             }
             window.display();
-            //std::cout<<(1/dt.asSeconds())<<'\n'; //fps
+            if (testFPS==true)std::cout<<(1/dt.asSeconds())<<'\n';
         }
     }
     //saving map
