@@ -10,7 +10,7 @@
 
 
 //fix: fisheye, collision when reversing, button toggles, level editor, tall/short visibility
-//add: textures, up/down, gameplay, gamify
+//add: textures, up/down, gameplay, gamify, doors, sky, jump, angles
 
 int main() {
     //settings
@@ -26,8 +26,9 @@ int main() {
     constexpr int fov=coefficient*res; //field of view in degrees
     constexpr float wallHeight1=2; //heights of respective wall types
     constexpr float wallHeight2=1;
-    constexpr float wallHeight3=0.7;
-    constexpr float tol=10; //px from wall where collision activates
+    constexpr float wallHeight3=0.3;
+    constexpr float playerHeight=1;
+    //constexpr float tol=10; //px from wall where collision activates
 
     //colours
     sf::Color grey(180,180,180);
@@ -103,7 +104,6 @@ int main() {
     }
 
     //algorithm use
-    //std::array<int, res> side; //used for logic and to select wall colour (1 is ver, 0 is hor)
     int side;
     sf::Vector2f scaledPos; //scaled position
     sf::Vector2i truncatedPos; //truncated scaled position
@@ -113,14 +113,13 @@ int main() {
     sf::Vector2f distY; //x: dist to first hor intercept, y: dist between consecutive hor intercepts
     sf::Vector2f unit; //x: 1 or -1 step for ver intercept, y: 1 or -1 step for hor intercept
     float wallDist; //dist to wall from camera plane
-    struct rayInfo { //info on each hit of each ray (multiple for dif square types)
+    struct RayInfo { //info on each hit of each ray (multiple for dif square types)
         int id; //hit type
         int side;
         float distX; //distX to hit
         float distY; //distY to hit
     };
-    std::stack<rayInfo> renderStack; //remembers order of hits to then render in reverse
-    //std::array<std::queue<float>, res> rl; //ray length (each has stack storing hits for dif square types)
+    std::stack<RayInfo> renderStack; //remembers order of hits to then render in reverse
 
     //misc
     sf::RenderWindow window(sf::VideoMode(screenW, screenH), "Ray-Caster", sf::Style::Titlebar | sf::Style::Close);
@@ -220,12 +219,17 @@ int main() {
                     distY.x+=distY.y;
                     truncatedPos.y+=unit.y;
                 }
-                if (map[truncatedPos.y][truncatedPos.x]==1) {
+                if (map[truncatedPos.y][truncatedPos.x]==1) { //tallest wall/end condition
                     renderStack.push({map[truncatedPos.y][truncatedPos.x],side,distX.x,distY.x});
                     break;
                 }
-                if (map[truncatedPos.y][truncatedPos.x]!=0) {
+                if (map[truncatedPos.y][truncatedPos.x]!=0) { //closer intercept
                     renderStack.push({map[truncatedPos.y][truncatedPos.x],side,distX.x,distY.x});
+                    if (abs(distX.x)<abs(distY.x)) { //further intercept
+                        renderStack.push({map[truncatedPos.y][truncatedPos.x],1,distX.x+distX.y,distY.x});
+                    } else {
+                        renderStack.push({map[truncatedPos.y][truncatedPos.x],0,distX.x,distY.x+distY.y});
+                    }
                 }
             }
 
@@ -238,43 +242,40 @@ int main() {
                 p.y+n.y*screenH*abs(distY.x-distY.y)/row};
             ray[i][0].position={p.x,p.y};
 
-            //rl[i].push(sqrt(pow((ray[i][1].position.x-ray[i][0].position.x),2)
-            // +pow((ray[i][1].position.y-ray[i][0].position.y),2)));
-
             //collision detection
             //if (i==fov&&rl[i]<tol)setSpeed=0;
 
-            std::cout<<'\n';
             //wall setup
             while (!renderStack.empty()) {
                 renderStack.top().side==1 ? wallDist=(abs(renderStack.top().distX)-abs(distX.y)) :
                 wallDist=(abs(renderStack.top().distY)-abs(distY.y));
+
                 switch (renderStack.top().id) {
                     case 1:
                         generic=red;
-                        if (renderStack.top().side==1)generic.r-=(0.3*shadowStrength);
-                        wallHeight=wallHeight1;
-                        break;
+                    if (renderStack.top().side==1)generic.r-=(0.3*shadowStrength);
+                    wallHeight=wallHeight1;
+                    break;
                     case 2:
                         generic=green;
-                        if (renderStack.top().side==1)generic.g-=(0.3*shadowStrength);
-                        wallHeight=wallHeight2;
-                        break;
+                    if (renderStack.top().side==1)generic.g-=(0.3*shadowStrength);
+                    wallHeight=wallHeight2;
+                    break;
                     case 3:
                         generic=blue;
-                        if (renderStack.top().side==1)generic.b-=(0.3*shadowStrength);
-                        wallHeight=wallHeight3;
-                        break;
+                    if (renderStack.top().side==1)generic.b-=(0.3*shadowStrength);
+                    wallHeight=wallHeight3;
+                    break;
                     default:
                         generic=green;
-                        if (renderStack.top().side==1)generic.g-=(0.3*shadowStrength);
-                        wallHeight=1;
-                        break;
+                    if (renderStack.top().side==1)generic.g-=(0.3*shadowStrength);
+                    wallHeight=1;
+                    break;
                 }
-                std::cout<<wallDist<<'\n';
                 generic.r-=wallDist*wallDist*shadowStrength/res;
                 generic.g-=wallDist*wallDist*shadowStrength/res;
                 generic.b-=wallDist*wallDist*shadowStrength/res;
+
                 sf::RectangleShape rect;
                 rect.setFillColor(generic);
                 generic.r=255;generic.g=255;generic.b=255;
