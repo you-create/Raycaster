@@ -28,7 +28,6 @@ int main() {
     constexpr float wallHeight2=1;
     constexpr float wallHeight3=0.3;
     constexpr float playerHeight=1;
-    //constexpr float tol=10; //px from wall where collision activates
 
     //colours
     sf::Color white(255,255,255);
@@ -82,8 +81,17 @@ int main() {
     floor.setFillColor(darkGrey);
 
     //textures
-    sf::Texture texture;
-    texture.loadFromFile("texture1.png");
+    sf::Texture sandBricksTex;
+    sandBricksTex.loadFromFile("sand_bricks.png");
+    sf::Texture darkSandBricksTex;
+    darkSandBricksTex.loadFromFile("dark_sand_bricks.png");
+    sf::Texture stoneBricksTex;
+    stoneBricksTex.loadFromFile("stone_bricks.png");
+    sf::Texture stoneBricksTex2;
+    stoneBricksTex2.loadFromFile("stone_bricks2.png");
+    sf::Texture longStoneBricksTex;
+    longStoneBricksTex.loadFromFile("long_stone_bricks.png");
+
 
     //player
     sf::Vector3f p(screenW/2,screenH/2,0); //position and direction (x, y, theta in rad)
@@ -268,20 +276,6 @@ int main() {
                 renderStack.top().side==1 ? wallDist=(abs(renderStack.top().distX)-abs(distX.y)) :
                 wallDist=(abs(renderStack.top().distY)-abs(distY.y));
 
-                switch (renderStack.top().id) {
-                    case 1:
-                    wallHeight=wallHeight1;
-                    break;
-                    case 2:
-                    wallHeight=wallHeight2;
-                    break;
-                    case 3:
-                    wallHeight=wallHeight3;
-                    break;
-                    default:
-                    wallHeight=1;
-                    break;
-                }
                 if (renderStack.top().side==1) {
                     white.r-=(0.3*shadowStrength);
                     white.g-=(0.3*shadowStrength);
@@ -293,11 +287,30 @@ int main() {
                 sf::RectangleShape rect;
                 rect.setFillColor(white);
                 white.r=255;white.g=255;white.b=255;
+
+                switch (renderStack.top().id) {
+                    case 1:
+                        wallHeight=wallHeight1;
+                        rect.setTexture(&longStoneBricksTex);
+                        break;
+                    case 2:
+                        wallHeight=wallHeight2;
+                        rect.setTexture(&darkSandBricksTex);
+                        break;
+                    case 3:
+                        wallHeight=wallHeight3;
+                        rect.setTexture(&sandBricksTex);
+                        break;
+                    default:
+                        wallHeight=1;
+                        rect.setTexture(&stoneBricksTex);
+                        break;
+                }
+
                 rect.setSize(sf::Vector2f(1+screenW/res, wallHeight*screenH/wallDist));
                 rect.setOrigin(screenW/column,rect.getSize().y);
                 rect.setPosition((screenW/column+i*screenW/res),screenH/2+screenH/(2*wallDist));
 
-                rect.setTexture(&texture);
                 int texStartCoordX;
                 renderStack.top().side==1 ? texStartCoordX=renderStack.top().interceptYPos*32 :
                 texStartCoordX=renderStack.top().interceptXPos*32;
