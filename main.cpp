@@ -14,20 +14,21 @@
 
 int main() {
     //settings
-    constexpr bool testFPS=true; //if true prints max fps
+    constexpr bool testFPS=0; //if true prints max fps
     constexpr int screenW=900; //in px
     constexpr int screenH=600;
     constexpr int row=20; //number of rows in map
     constexpr int column=20; //number of columns in map
     constexpr int shadowStrength=50;
     constexpr int speed=100; //player movement speed
-    constexpr int res=1200; //resolution
-    constexpr float coefficient=0.05;
+    constexpr int res=200; //resolution
+    constexpr float coefficient=0.3;
     constexpr int fov=coefficient*res; //field of view in degrees
     constexpr float wallHeight1=2; //heights of respective wall types
     constexpr float wallHeight2=1;
     constexpr float wallHeight3=0.3;
     constexpr float playerHeight=1;
+    constexpr float aliasAdjust=0.3;
 
     //colours
     sf::Color white(255,255,255);
@@ -93,6 +94,16 @@ int main() {
     stoneBricksTex2.loadFromFile("stone_bricks2.png");
     sf::Texture longStoneBricksTex;
     longStoneBricksTex.loadFromFile("long_stone_bricks.png");
+    sf::Texture cobbleTex;
+    cobbleTex.loadFromFile("cobble.png");
+    sf::Texture largePlainBricksTex;
+    largePlainBricksTex.loadFromFile("large_plain_bricks.png");
+    sf::Texture towerWithCageTex;
+    towerWithCageTex.loadFromFile("towe_with_cage.png");
+    sf::Texture brickTowerTex;
+    brickTowerTex.loadFromFile("brick_tower.png");
+    sf::Texture bannerBlueTex;
+    bannerBlueTex.loadFromFile("banner_blue.png");
 
 
     //player
@@ -300,15 +311,15 @@ int main() {
                 switch (renderStack.top().id) {
                     case 1:
                         wallHeight=wallHeight1;
-                        rect.setTexture(&longStoneBricksTex);
+                        rect.setTexture(&bannerBlueTex);
                         break;
                     case 2:
                         wallHeight=wallHeight2;
-                        rect.setTexture(&darkSandBricksTex);
+                        rect.setTexture(&largePlainBricksTex);
                         break;
                     case 3:
                         wallHeight=wallHeight3;
-                        rect.setTexture(&sandBricksTex);
+                        rect.setTexture(&largePlainBricksTex);
                         break;
                     default:
                         wallHeight=1;
@@ -323,7 +334,9 @@ int main() {
                 int texStartCoordX;
                 renderStack.top().side==1 ? texStartCoordX=renderStack.top().interceptYPos*32 :
                 texStartCoordX=renderStack.top().interceptXPos*32;
-                rect.setTextureRect(sf::IntRect({texStartCoordX, 0}, {32/res, 32}));
+                if (renderStack.top().id==1){rect.setTextureRect(sf::IntRect({texStartCoordX, 0}, {static_cast<int>(wallDist*aliasAdjust), 64}));}
+                else {rect.setTextureRect(sf::IntRect({texStartCoordX, 0}, {32/res, 32}));}
+
 
                 wall.push(rect);
 
