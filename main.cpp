@@ -9,20 +9,20 @@
 #include <iostream>
 
 
-//fix: fisheye, collision when reversing, button toggles, level editor, block top
-//add: textures, up/down, gameplay, gamify, doors, sky, jump, angles
+//fix: fisheye, collision when reversing, button toggles, level editor, block top, aliasing effects, inner wall textures
+//add: y shearing, gameplay, gamify, doors, sky, textured floor, jump, angles/intersection method
 
 int main() {
     //settings
-    constexpr bool testFPS=false; //if true prints max fps
+    constexpr bool testFPS=true; //if true prints max fps
     constexpr int screenW=900; //in px
     constexpr int screenH=600;
     constexpr int row=20; //number of rows in map
     constexpr int column=20; //number of columns in map
     constexpr int shadowStrength=50;
     constexpr int speed=100; //player movement speed
-    constexpr int res=200; //resolution
-    constexpr float coefficient=0.3;
+    constexpr int res=1200; //resolution
+    constexpr float coefficient=0.05;
     constexpr int fov=coefficient*res; //field of view in degrees
     constexpr float wallHeight1=2; //heights of respective wall types
     constexpr float wallHeight2=1;
@@ -34,6 +34,8 @@ int main() {
     sf::Color lightGrey(240,240,240);
     sf::Color grey(180,180,180);
     sf::Color darkGrey(140,140,140);
+    sf::Color lightBlue(83,168,252);
+
 
     //map
     int map[row][column];
@@ -74,7 +76,7 @@ int main() {
     //ceiling and floor
     sf::RectangleShape ceiling;
     ceiling.setSize(sf::Vector2f(screenW,screenH/2));
-    ceiling.setFillColor(lightGrey);
+    ceiling.setFillColor(lightBlue);
     sf::RectangleShape floor;
     floor.setSize(sf::Vector2f(screenW,screenH/2));
     floor.setPosition(sf::Vector2f(0,screenH/2));
@@ -273,8 +275,15 @@ int main() {
 
             //wall setup
             while (!renderStack.empty()) {
-                renderStack.top().side==1 ? wallDist=(abs(renderStack.top().distX)-abs(distX.y)) :
-                wallDist=(abs(renderStack.top().distY)-abs(distY.y));
+                float angle;
+                if (i<(res/2)) {
+                    angle=(1.f-(static_cast<float>(i)/(static_cast<float>(res)/2.f)))*static_cast<float>(fov)/2.f;
+                } else {
+                    angle=((static_cast<float>(i)-(static_cast<float>(res)/2.f))/(static_cast<float>(res)/2.f))
+                    *static_cast<float>(fov)/2.f;
+                }
+                renderStack.top().side==1 ? wallDist=(abs(renderStack.top().distX)-abs(distX.y))*cos(angle*(M_PI/180)) :
+                wallDist=(abs(renderStack.top().distY)-abs(distY.y))*cos(angle*(M_PI/180));
 
                 if (renderStack.top().side==1) {
                     white.r-=(0.3*shadowStrength);
@@ -322,6 +331,7 @@ int main() {
             }
         }
 
+
         //keyboard control
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) { //forwards
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {setSpeed*=3;} //zoomies
@@ -332,10 +342,13 @@ int main() {
         }
         player.setPosition(p.x, p.y);
         setSpeed=speed;
+        // if (abs(sky.getPosition().x)<0.01){sky.setPosition(-screenW,0);std::cout<<"hi\n";}
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) { //rotate ccw
             player.setRotation(player.getRotation()-1.8*setSpeed*dt.asSeconds());
         } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) { //rotate cw
-            player.setRotation(player.getRotation()+1.8*setSpeed*dt.asSeconds());}
+            player.setRotation(player.getRotation()+1.8*setSpeed*dt.asSeconds());
+        }
+
 
         if (menu==true) {
             window.clear(sf::Color::Black);
@@ -357,6 +370,7 @@ int main() {
         } else {
             //rendering
             window.clear(sf::Color::Black);
+            //window.draw(ceiling);
             window.draw(ceiling);
             window.draw(floor);
             while (!wall.empty()) {
