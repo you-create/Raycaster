@@ -9,7 +9,7 @@
 #include <iostream>
 
 
-//fix: fisheye, collision when reversing, button toggles, level editor, tall/short visibility
+//fix: fisheye, collision when reversing, button toggles, level editor, block top
 //add: textures, up/down, gameplay, gamify, doors, sky, jump, angles
 
 int main() {
@@ -31,13 +31,10 @@ int main() {
     //constexpr float tol=10; //px from wall where collision activates
 
     //colours
-    sf::Color grey(180,180,180);
+    sf::Color white(255,255,255);
     sf::Color lightGrey(240,240,240);
+    sf::Color grey(180,180,180);
     sf::Color darkGrey(140,140,140);
-    sf::Color red(255,0,0); //1
-    sf::Color green(0,255,0); //2
-    sf::Color blue(0,0,255); //3
-    sf::Color generic(255,255,255);
 
     //map
     int map[row][column];
@@ -84,6 +81,10 @@ int main() {
     floor.setPosition(sf::Vector2f(0,screenH/2));
     floor.setFillColor(darkGrey);
 
+    //textures
+    sf::Texture texture;
+    texture.loadFromFile("texture1.png");
+
     //player
     sf::Vector3f p(screenW/2,screenH/2,0); //position and direction (x, y, theta in rad)
     sf::ConvexShape player;
@@ -113,11 +114,15 @@ int main() {
     sf::Vector2f distY; //x: dist to first hor intercept, y: dist between consecutive hor intercepts
     sf::Vector2f unit; //x: 1 or -1 step for ver intercept, y: 1 or -1 step for hor intercept
     float wallDist; //dist to wall from camera plane
+    float interceptXPos; //pos of hor intercept along wall (0~1). used for texture
+    float interceptYPos; //pos of ver intercept along wall (0~1). used for texture
     struct RayInfo { //info on each hit of each ray (multiple for dif square types)
         int id; //hit type
         int side;
         float distX; //distX to hit
         float distY; //distY to hit
+        float interceptXPos; //hor position of hit 0~1 on face
+        float interceptYPos; //ver position of hit 0~1 on face
     };
     std::stack<RayInfo> renderStack; //remembers order of hits to then render in reverse
 
@@ -219,16 +224,32 @@ int main() {
                     distY.x+=distY.y;
                     truncatedPos.y+=unit.y;
                 }
+
+                //finding position of intercept along wall (0~1) for texture
+                interceptXPos=scaledPos.x+(abs(distY.x)-abs(distY.y))*n.x;
+                interceptYPos=scaledPos.y+(abs(distX.x)-abs(distX.y))*n.y;
+                if (interceptXPos>1)interceptXPos=interceptXPos-static_cast<int>(interceptXPos);
+                if (interceptYPos>1)interceptYPos=interceptYPos-static_cast<int>(interceptYPos);
+                if (n.x>0&&n.y>0) { //q1
+                    interceptXPos=1-interceptXPos;
+                } else if (n.x<0&&n.y>0) { //q2
+                    interceptXPos=1-interceptXPos;
+                    interceptYPos=1-interceptYPos;
+                } else if (n.x<0&&n.y<0) { //q3
+                    interceptYPos=1-interceptYPos;
+                }
+
+
                 if (map[truncatedPos.y][truncatedPos.x]==1) { //tallest wall/end condition
-                    renderStack.push({map[truncatedPos.y][truncatedPos.x],side,distX.x,distY.x});
+                    renderStack.push({map[truncatedPos.y][truncatedPos.x],side,distX.x,distY.x,interceptXPos,interceptYPos});
                     break;
                 }
                 if (map[truncatedPos.y][truncatedPos.x]!=0) { //closer intercept
-                    renderStack.push({map[truncatedPos.y][truncatedPos.x],side,distX.x,distY.x});
+                    renderStack.push({map[truncatedPos.y][truncatedPos.x],side,distX.x,distY.x,interceptXPos,interceptYPos});
                     if (abs(distX.x)<abs(distY.x)) { //further intercept
-                        renderStack.push({map[truncatedPos.y][truncatedPos.x],1,distX.x+distX.y,distY.x});
+                        renderStack.push({map[truncatedPos.y][truncatedPos.x],1,distX.x+distX.y,distY.x,interceptXPos,interceptYPos});
                     } else {
-                        renderStack.push({map[truncatedPos.y][truncatedPos.x],0,distX.x,distY.x+distY.y});
+                        renderStack.push({map[truncatedPos.y][truncatedPos.x],0,distX.x,distY.x+distY.y,interceptXPos,interceptYPos});
                     }
                 }
             }
@@ -242,9 +263,6 @@ int main() {
                 p.y+n.y*screenH*abs(distY.x-distY.y)/row};
             ray[i][0].position={p.x,p.y};
 
-            //collision detection
-            //if (i==fov&&rl[i]<tol)setSpeed=0;
-
             //wall setup
             while (!renderStack.empty()) {
                 renderStack.top().side==1 ? wallDist=(abs(renderStack.top().distX)-abs(distX.y)) :
@@ -252,36 +270,39 @@ int main() {
 
                 switch (renderStack.top().id) {
                     case 1:
-                        generic=red;
-                    if (renderStack.top().side==1)generic.r-=(0.3*shadowStrength);
                     wallHeight=wallHeight1;
                     break;
                     case 2:
-                        generic=green;
-                    if (renderStack.top().side==1)generic.g-=(0.3*shadowStrength);
                     wallHeight=wallHeight2;
                     break;
                     case 3:
-                        generic=blue;
-                    if (renderStack.top().side==1)generic.b-=(0.3*shadowStrength);
                     wallHeight=wallHeight3;
                     break;
                     default:
-                        generic=green;
-                    if (renderStack.top().side==1)generic.g-=(0.3*shadowStrength);
                     wallHeight=1;
                     break;
                 }
-                generic.r-=wallDist*wallDist*shadowStrength/res;
-                generic.g-=wallDist*wallDist*shadowStrength/res;
-                generic.b-=wallDist*wallDist*shadowStrength/res;
-
+                if (renderStack.top().side==1) {
+                    white.r-=(0.3*shadowStrength);
+                    white.g-=(0.3*shadowStrength);
+                    white.b-=(0.3*shadowStrength);
+                }
+                white.r-=wallDist*wallDist*shadowStrength/res;
+                white.g-=wallDist*wallDist*shadowStrength/res;
+                white.b-=wallDist*wallDist*shadowStrength/res;
                 sf::RectangleShape rect;
-                rect.setFillColor(generic);
-                generic.r=255;generic.g=255;generic.b=255;
+                rect.setFillColor(white);
+                white.r=255;white.g=255;white.b=255;
                 rect.setSize(sf::Vector2f(1+screenW/res, wallHeight*screenH/wallDist));
                 rect.setOrigin(screenW/column,rect.getSize().y);
                 rect.setPosition((screenW/column+i*screenW/res),screenH/2+screenH/(2*wallDist));
+
+                rect.setTexture(&texture);
+                int texStartCoordX;
+                renderStack.top().side==1 ? texStartCoordX=renderStack.top().interceptYPos*32 :
+                texStartCoordX=renderStack.top().interceptXPos*32;
+                rect.setTextureRect(sf::IntRect({texStartCoordX, 0}, {32/res, 32}));
+
                 wall.push(rect);
 
                 renderStack.pop();
