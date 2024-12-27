@@ -28,7 +28,8 @@ int main() {
     constexpr float wallHeight2=1;
     constexpr float wallHeight3=0.3;
     constexpr float playerHeight=1;
-    constexpr float aliasAdjust=0.3;
+    constexpr float aliasAdjust=0.3; //changes width of tex rects to reduce aliasing effects
+    constexpr float sensitivity=1; //mouse camera control sensitivity
 
     //colours
     sf::Color white(255,255,255);
@@ -84,27 +85,31 @@ int main() {
     floor.setFillColor(darkGrey);
 
     //textures
-    sf::Texture sandBricksTex;
-    sandBricksTex.loadFromFile("sand_bricks.png");
-    sf::Texture darkSandBricksTex;
-    darkSandBricksTex.loadFromFile("dark_sand_bricks.png");
-    sf::Texture stoneBricksTex;
-    stoneBricksTex.loadFromFile("stone_bricks.png");
-    sf::Texture stoneBricksTex2;
-    stoneBricksTex2.loadFromFile("stone_bricks2.png");
-    sf::Texture longStoneBricksTex;
-    longStoneBricksTex.loadFromFile("long_stone_bricks.png");
-    sf::Texture cobbleTex;
-    cobbleTex.loadFromFile("cobble.png");
+    // sf::Texture sandBricksTex;
+    // sandBricksTex.loadFromFile("sand_bricks.png");
+    // sf::Texture darkSandBricksTex;
+    // darkSandBricksTex.loadFromFile("dark_sand_bricks.png");
+    // sf::Texture stoneBricksTex;
+    // stoneBricksTex.loadFromFile("stone_bricks.png");
+    // sf::Texture stoneBricksTex2;
+    // stoneBricksTex2.loadFromFile("stone_bricks2.png");
+    // sf::Texture longStoneBricksTex;
+    // longStoneBricksTex.loadFromFile("long_stone_bricks.png");
+    // sf::Texture cobbleTex;
+    // cobbleTex.loadFromFile("cobble.png");
     sf::Texture largePlainBricksTex;
     largePlainBricksTex.loadFromFile("large_plain_bricks.png");
-    sf::Texture towerWithCageTex;
-    towerWithCageTex.loadFromFile("towe_with_cage.png");
-    sf::Texture brickTowerTex;
-    brickTowerTex.loadFromFile("brick_tower.png");
+    // sf::Texture towerWithCageTex;
+    // towerWithCageTex.loadFromFile("towe_with_cage.png");
+    // sf::Texture brickTowerTex;
+    // brickTowerTex.loadFromFile("brick_tower.png");
     sf::Texture bannerBlueTex;
     bannerBlueTex.loadFromFile("banner_blue.png");
-
+    sf::Texture bannerRedTex;
+    bannerRedTex.loadFromFile("banner_red.png");
+    // sf::Texture gravelTex;
+    // gravelTex.loadFromFile("gravel.jpg");
+    // floor.setTexture(&gravelTex);
 
     //player
     sf::Vector3f p(screenW/2,screenH/2,0); //position and direction (x, y, theta in rad)
@@ -153,11 +158,18 @@ int main() {
     bool menu=false;
     std::queue<sf::RectangleShape> wall;
     float wallHeight;
+    float movingPlayerHeight=playerHeight;
+    float initMouseX;
+    float ratioHolder;
 
     while (window.isOpen()) {
-        //fps and time setup
+
+        //general setup
         if (testFPS==false)window.setFramerateLimit(60);
         sf::Time dt=clock.restart(); //delta time
+        window.setMouseCursorVisible(false);
+        window.setMouseCursorGrabbed(true);
+        initMouseX=sf::Mouse::getPosition(window).x;
 
         //keyboard commands
         sf::Event event;
@@ -203,6 +215,7 @@ int main() {
         //keyboard control setup
         p.z=player.getRotation()*M_PI/180;
         setSpeed=speed;
+        float curMouseX=static_cast<float>(sf::Mouse::getPosition(window).x);
 
         //DDA algo. checks grid+1 in direction of next nearest intercept for wall
         for (int i=0;i<res;i++) {
@@ -267,11 +280,11 @@ int main() {
                 }
                 if (map[truncatedPos.y][truncatedPos.x]!=0) { //closer intercept
                     renderStack.push({map[truncatedPos.y][truncatedPos.x],side,distX.x,distY.x,interceptXPos,interceptYPos});
-                    if (abs(distX.x)<abs(distY.x)) { //further intercept
-                        renderStack.push({map[truncatedPos.y][truncatedPos.x],1,distX.x+distX.y,distY.x,interceptXPos,interceptYPos});
-                    } else {
-                        renderStack.push({map[truncatedPos.y][truncatedPos.x],0,distX.x,distY.x+distY.y,interceptXPos,interceptYPos});
-                    }
+                    // if (abs(distX.x)<abs(distY.x)) { //further intercept
+                    //     renderStack.push({map[truncatedPos.y][truncatedPos.x],1,distX.x+distX.y,distY.x,interceptXPos,interceptYPos});
+                    // } else {
+                    //     renderStack.push({map[truncatedPos.y][truncatedPos.x],0,distX.x,distY.x+distY.y,interceptXPos,interceptYPos});
+                    // }
                 }
             }
 
@@ -311,7 +324,7 @@ int main() {
                 switch (renderStack.top().id) {
                     case 1:
                         wallHeight=wallHeight1;
-                        rect.setTexture(&bannerBlueTex);
+                        rect.setTexture(&bannerRedTex);
                         break;
                     case 2:
                         wallHeight=wallHeight2;
@@ -323,13 +336,13 @@ int main() {
                         break;
                     default:
                         wallHeight=1;
-                        rect.setTexture(&stoneBricksTex);
+                        rect.setTexture(&largePlainBricksTex);
                         break;
                 }
 
                 rect.setSize(sf::Vector2f(1+screenW/res, wallHeight*screenH/wallDist));
                 rect.setOrigin(screenW/column,rect.getSize().y);
-                rect.setPosition((screenW/column+i*screenW/res),screenH/2+screenH/(2*wallDist));
+                rect.setPosition((screenW/column+i*screenW/res),(screenH/2+screenH/(2*wallDist))*movingPlayerHeight);
 
                 int texStartCoordX;
                 renderStack.top().side==1 ? texStartCoordX=renderStack.top().interceptYPos*32 :
@@ -344,7 +357,6 @@ int main() {
             }
         }
 
-
         //keyboard control
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) { //forwards
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {setSpeed*=3;} //zoomies
@@ -353,15 +365,53 @@ int main() {
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {setSpeed*=3;} //zoomies
             p.x-=cos(p.z)*setSpeed*dt.asSeconds(); p.y-=sin(p.z)*setSpeed*dt.asSeconds();
         }
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) { //left
+            p.x+=sin(p.z)*setSpeed*dt.asSeconds(); p.y-=cos(p.z)*setSpeed*dt.asSeconds();
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) { //right
+            p.x-=sin(p.z)*setSpeed*dt.asSeconds(); p.y+=cos(p.z)*setSpeed*dt.asSeconds();
+        }
         player.setPosition(p.x, p.y);
         setSpeed=speed;
-        // if (abs(sky.getPosition().x)<0.01){sky.setPosition(-screenW,0);std::cout<<"hi\n";}
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) { //rotate ccw
-            player.setRotation(player.getRotation()-1.8*setSpeed*dt.asSeconds());
-        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) { //rotate cw
-            player.setRotation(player.getRotation()+1.8*setSpeed*dt.asSeconds());
-        }
+        // float mouseSpeed=(static_cast<float>(sf::Mouse::getPosition(window).x)-curMouseX)/dt.asSeconds();
+        // //mouse rotation
+        // if (abs(mouseSpeed)>0) {
+        //     player.setRotation(player.getRotation()+mouseSpeed*dt.asSeconds());
+        // }
 
+        // if (abs(static_cast<float>(sf::Mouse::getPosition(window).x)-static_cast<float>(screenW)/2.f)>(0.2*static_cast<float>(screenW))) {
+        //     player.setRotation(player.getRotation()+2*setSpeed*(1.f/(2.f*static_cast<float>(screenW)))*
+        //         (static_cast<float>(sf::Mouse::getPosition(window).x)-static_cast<float>(screenW)/2.f)*dt.asSeconds());
+        // }
+
+        // sf::Vector2i screenOrigin1={(screenW-2),0};
+        // sf::Vector2i screenOrigin2={1,0};
+        // std::cout<<sf::Mouse::getPosition(window).x<<"\n";
+        // if ((sf::Mouse::getPosition(window).x)==0) {
+        //     sf::Mouse::setPosition(screenOrigin1);
+        //     std::cout<<"1$$$$$$$$$$$$\n";
+        // }
+        // if (sf::Mouse::getPosition(window).x==(screenW-1)) {
+        //     sf::Mouse::setPosition(screenOrigin2);
+        //     std::cout<<"2$$$$$$$$$$$$\n";
+        // }
+        // std::cout<<sf::Mouse::getPosition(window).x<<"\n";
+        // std::cout<<curMouseX<<"\n\n";
+        // std::cout<<abs(((sf::Mouse::getPosition(window).x)/static_cast<float>(screenW)))<<" ";
+        // if (sf::Mouse::getPosition(window).x>static_cast<float>(screenW-4)) {sf::Mouse::setPosition({0,sf::Mouse::getPosition(window).y},window);}
+        // if (abs(((sf::Mouse::getPosition(window).x)/static_cast<float>(screenW)))==0) {sf::Mouse::setPosition({sf::Mouse::getPosition(window).x+screenW,sf::Mouse::getPosition(window).y},window);}
+        player.setRotation(static_cast<float>(sf::Mouse::getPosition(window).x)/static_cast<float>(screenW-4)*360.f*sensitivity);
+        // std::cout<<abs(((sf::Mouse::getPosition(window).x)/static_cast<float>(screenW)))<<"\n";
+
+        // if (abs((300.f-static_cast<float>(sf::Mouse::getPosition(window).x))/dt.asSeconds())>0.1) {
+        // }
+        // initMouseX=static_cast<float>(sf::Mouse::getPosition(window).x);
+        // std::cout<<initMouseX<<"";
+        // std::cout<<((static_cast<float>(screenW)/2.f)-static_cast<float>(sf::Mouse::getPosition(window).x))<<" ";
+        // std::cout<<(((static_cast<float>(screenW)/2.f)-static_cast<float>(sf::Mouse::getPosition(window).x))/dt.asSeconds())<<" ";
+        // std::cout<<sf::Mouse::getPosition(window).x<<"\n";
+        // player.setRotation((((static_cast<float>(screenW)/2.f)-static_cast<float>(sf::Mouse::getPosition(window).x))/dt.asMicroseconds())*360.f*sensitivity);
+        // sf::Mouse::setPosition({450,300},window);
+        // std::cout<<sf::Mouse::getPosition(window).x<<"\n";
 
         if (menu==true) {
             window.clear(sf::Color::Black);
