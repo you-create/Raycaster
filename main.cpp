@@ -1,5 +1,6 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
+#include <SFML/OpenGL.hpp>
 
 #include <array>
 #include <stack>
@@ -9,8 +10,8 @@
 #include <iostream>
 
 
-//fix: fisheye, collision when reversing, button toggles, level editor, block top, aliasing effects, inner wall textures
-//add: y shearing, gameplay, gamify, doors, sky, textured floor, jump, angles/intersection method
+//fix: mild fisheye, collision, button toggles, level editor, block top, alias adjust, inner wall textures
+//add: y shearing, gameplay, doors+portals, sky, textured floor, jump, angles (intersection method?), mouse control, more textures (plasma?)
 
 int main() {
     //settings
@@ -25,11 +26,11 @@ int main() {
     constexpr float coefficient=0.3;
     constexpr int fov=coefficient*res; //field of view in degrees
     constexpr float wallHeight1=2; //heights of respective wall types
-    constexpr float wallHeight2=1;
-    constexpr float wallHeight3=0.3;
+    constexpr float wallHeight2=2;
+    constexpr float wallHeight3=1;
+    constexpr float wallHeight4=1;
     constexpr float playerHeight=1;
     constexpr float aliasAdjust=0.3; //changes width of tex rects to reduce aliasing effects
-    constexpr float sensitivity=1; //mouse camera control sensitivity
 
     //colours
     sf::Color white(255,255,255);
@@ -79,10 +80,14 @@ int main() {
     sf::RectangleShape ceiling;
     ceiling.setSize(sf::Vector2f(screenW,screenH/2));
     ceiling.setFillColor(lightBlue);
-    sf::RectangleShape floor;
-    floor.setSize(sf::Vector2f(screenW,screenH/2));
-    floor.setPosition(sf::Vector2f(0,screenH/2));
-    floor.setFillColor(darkGrey);
+    // sf::RectangleShape floor;
+    // floor.setSize(sf::Vector2f(screenW,screenH/2));
+    // floor.setPosition(sf::Vector2f(0,screenH/2));
+    // floor.setFillColor(darkGrey);
+    std::vector<sf::RectangleShape> floor;
+    std::vector<sf::CircleShape> floorPV;
+    std::vector<sf::CircleShape> horRayPV;
+
 
     //textures
     // sf::Texture sandBricksTex;
@@ -101,8 +106,8 @@ int main() {
     largePlainBricksTex.loadFromFile("large_plain_bricks.png");
     // sf::Texture towerWithCageTex;
     // towerWithCageTex.loadFromFile("towe_with_cage.png");
-    // sf::Texture brickTowerTex;
-    // brickTowerTex.loadFromFile("brick_tower.png");
+    sf::Texture brickTowerTex;
+    brickTowerTex.loadFromFile("brick_tower.png");
     sf::Texture bannerBlueTex;
     bannerBlueTex.loadFromFile("banner_blue.png");
     sf::Texture bannerRedTex;
@@ -110,6 +115,15 @@ int main() {
     // sf::Texture gravelTex;
     // gravelTex.loadFromFile("gravel.jpg");
     // floor.setTexture(&gravelTex);
+    // sf::Texture checkerBoardTex;
+    // checkerBoardTex.loadFromFile("checkerboard.png");
+    sf::Image checkerboardImage;
+    checkerboardImage.loadFromFile("red_checkerboard.png");
+    sf::Image checkerboardBufferImage;
+    checkerboardBufferImage.create(32,1);
+    sf::Texture floorTex;
+    floorTex.create(32,1);
+
 
     //player
     sf::Vector3f p(screenW/2,screenH/2,0); //position and direction (x, y, theta in rad)
@@ -159,17 +173,12 @@ int main() {
     std::queue<sf::RectangleShape> wall;
     float wallHeight;
     float movingPlayerHeight=playerHeight;
-    float initMouseX;
-    float ratioHolder;
 
     while (window.isOpen()) {
 
         //general setup
         if (testFPS==false)window.setFramerateLimit(60);
         sf::Time dt=clock.restart(); //delta time
-        window.setMouseCursorVisible(false);
-        window.setMouseCursorGrabbed(true);
-        initMouseX=sf::Mouse::getPosition(window).x;
 
         //keyboard commands
         sf::Event event;
@@ -184,26 +193,33 @@ int main() {
                 sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) menu=false;
 
             //level editing
-            if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&
+            if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&//red banner tower
                 event.type==sf::Event::KeyPressed&&
                 event.key.code==sf::Keyboard::Num1&&
                 menu==true) {
                 map[static_cast<int>(row*sf::Mouse::getPosition(window).y/screenH)]
                 [static_cast<int>(column*sf::Mouse::getPosition(window).x/screenW)]=1;
             }
-            if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&
+            if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&//blue banner tower
                 event.type==sf::Event::KeyPressed&&
                 event.key.code==sf::Keyboard::Num2&&
                 menu==true) {
                 map[static_cast<int>(row*sf::Mouse::getPosition(window).y/screenH)]
                 [static_cast<int>(column*sf::Mouse::getPosition(window).x/screenW)]=2;
             }
-            if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&
+            if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&//internal plain block
                 event.type==sf::Event::KeyPressed&&
                 event.key.code==sf::Keyboard::Num3&&
                 menu==true) {
                 map[static_cast<int>(row*sf::Mouse::getPosition(window).y/screenH)]
                 [static_cast<int>(column*sf::Mouse::getPosition(window).x/screenW)]=3;
+            }
+            if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&//edge plain block (end condition)
+                event.type==sf::Event::KeyPressed&&
+                event.key.code==sf::Keyboard::Num4&&
+                menu==true) {
+                map[static_cast<int>(row*sf::Mouse::getPosition(window).y/screenH)]
+                [static_cast<int>(column*sf::Mouse::getPosition(window).x/screenW)]=4;
             }
             if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&
                 sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)&&menu==true) {
@@ -212,21 +228,21 @@ int main() {
             }
         }
 
-        //keyboard control setup
-        p.z=player.getRotation()*M_PI/180;
+        //general setup
+        p.z=player.getRotation()*M_PI/180; //[0,2*M_PI)
         setSpeed=speed;
-        float curMouseX=static_cast<float>(sf::Mouse::getPosition(window).x);
+
 
         //DDA algo. checks grid+1 in direction of next nearest intercept for wall
         for (int i=0;i<res;i++) {
-            n.x=cos(p.z+(-(fov/2)+i*coefficient)*M_PI/180);
-            n.y=sin(p.z+(-(fov/2)+i*coefficient)*M_PI/180);
-            if (n.y==0)n.y=0.00001; //avoiding division by zero
-
             scaledPos={column*p.x/screenW,row*p.y/screenH};
             truncatedPos={static_cast<int>(scaledPos.x),static_cast<int>(scaledPos.y)};
             internalPos={scaledPos.x-static_cast<float>(truncatedPos.x),
             scaledPos.y-static_cast<float>(truncatedPos.y)};
+
+            n.x=cos(p.z+(-(fov/2)+i*coefficient)*M_PI/180);
+            n.y=sin(p.z+(-(fov/2)+i*coefficient)*M_PI/180);
+            if (n.y==0)n.y=0.00001; //avoiding division by zero
 
             if (n.x>0) {
                 distX.x=(1-internalPos.x)/n.x;
@@ -273,8 +289,7 @@ int main() {
                     interceptYPos=1-interceptYPos;
                 }
 
-
-                if (map[truncatedPos.y][truncatedPos.x]==1) { //tallest wall/end condition
+                if (map[truncatedPos.y][truncatedPos.x]==4) { //end condition
                     renderStack.push({map[truncatedPos.y][truncatedPos.x],side,distX.x,distY.x,interceptXPos,interceptYPos});
                     break;
                 }
@@ -299,6 +314,7 @@ int main() {
 
             //wall setup
             while (!renderStack.empty()) {
+                //wall rects
                 float angle;
                 if (i<(res/2)) {
                     angle=(1.f-(static_cast<float>(i)/(static_cast<float>(res)/2.f)))*static_cast<float>(fov)/2.f;
@@ -324,16 +340,20 @@ int main() {
                 switch (renderStack.top().id) {
                     case 1:
                         wallHeight=wallHeight1;
-                        rect.setTexture(&bannerRedTex);
+                        renderStack.top().side==1 ? rect.setTexture(&bannerRedTex) : rect.setTexture(&brickTowerTex);
                         break;
                     case 2:
                         wallHeight=wallHeight2;
-                        rect.setTexture(&largePlainBricksTex);
+                        renderStack.top().side==1 ? rect.setTexture(&bannerBlueTex) : rect.setTexture(&brickTowerTex);
                         break;
                     case 3:
                         wallHeight=wallHeight3;
                         rect.setTexture(&largePlainBricksTex);
                         break;
+                    case 4:
+                        wallHeight=wallHeight4;
+                        rect.setTexture(&largePlainBricksTex);
+                    break;
                     default:
                         wallHeight=1;
                         rect.setTexture(&largePlainBricksTex);
@@ -347,15 +367,102 @@ int main() {
                 int texStartCoordX;
                 renderStack.top().side==1 ? texStartCoordX=renderStack.top().interceptYPos*32 :
                 texStartCoordX=renderStack.top().interceptXPos*32;
-                if (renderStack.top().id==1){rect.setTextureRect(sf::IntRect({texStartCoordX, 0}, {static_cast<int>(wallDist*aliasAdjust), 64}));}
-                else {rect.setTextureRect(sf::IntRect({texStartCoordX, 0}, {32/res, 32}));}
-
+                //separating short from long walls. should make constexpr
+                if (renderStack.top().id==1||renderStack.top().id==2){rect.setTextureRect(sf::IntRect({texStartCoordX, 0}, {static_cast<int>(wallDist*aliasAdjust), 64}));}
+                else {rect.setTextureRect(sf::IntRect({texStartCoordX, 0}, {static_cast<int>(wallDist*aliasAdjust), 32}));}
 
                 wall.push(rect);
 
                 renderStack.pop();
             }
         }
+
+        //floor
+        for (int i=0;i<static_cast<int>((static_cast<float>(screenH)/2.f));i++) {
+            sf::RectangleShape rect; //final to be drawn
+            rect.setSize(sf::Vector2f(static_cast<float>(screenW), 2));
+            rect.setOrigin(0.f,0.f);//(static_cast<float>(screenH)/2.f)
+            rect.setPosition(0.f,(static_cast<float>(screenH)/2.f)+static_cast<float>(i)*rect.getSize().y);
+
+            //in screen coords (same as p.x, p.y)
+            //first 10* means player is 10px behind camera plane. i+1 to avoid div by 0
+            float hypotenuse=(10*static_cast<float>(screenH)/2.f)/(static_cast<float>(i+1)*cos((M_PI/180.f)*static_cast<float>(fov)/2.f));
+
+            // if (hypotenuse>32)hypotenuse=32;
+            // if (hypotenuse<0)hypotenuse=0;
+
+            // std::cout<<hypotenuse<<'\n';
+
+            sf::Vector2f floorPos; //coord of leftmost pixel of hor ray in screen coords
+            float angle=p.z+((-fov/2)*(1-coefficient))*M_PI/180;
+            if(angle<0)angle+=2*M_PI;
+            if(angle>=2*M_PI)angle-=2*M_PI;
+            // floorPos.x=32*(sin((M_PI/180.f)*static_cast<float>(fov)/2.f)*hypotenuse+p.x)/static_cast<float>(screenW);
+            // floorPos.y=32*(cos((M_PI/180.f)*static_cast<float>(fov)/2.f)*hypotenuse+p.y)/static_cast<float>(screenH);
+            // std::cout<<angle<<' '<<p.z<<'\n';
+            floorPos.x=cos(angle)*hypotenuse+p.x; //offset?
+            floorPos.y=sin(angle)*hypotenuse+p.y;
+            // floorPos.x=cos(p.z)*hypotenuse+p.x;
+            // floorPos.y=sin(p.z)*hypotenuse+p.y;
+            // floorPos.x=sin((M_PI/180.f)*static_cast<float>(fov)/2.f)*hypotenuse+p.x;
+            // floorPos.y=cos((M_PI/180.f)*static_cast<float>(fov)/2.f)*hypotenuse+p.y;
+
+            // if (floorPos.x>32)floorPos.x=32;
+            // if (floorPos.x<0)floorPos.x=0;
+            // if (floorPos.y>32)floorPos.y=32;
+            // if (floorPos.y<0)floorPos.y=0;
+            if (floorPos.x>screenW)floorPos.x=screenW;
+            if (floorPos.x<0)floorPos.x=0;
+            if (floorPos.y>screenH)floorPos.y=screenH;
+            if (floorPos.y<0)floorPos.y=0;
+
+            // std::cout<<floorPos.x<<' ';
+            // std::cout<<floorPos.y<<'\n';
+
+            for (int j=0;j<32;j++) {
+                // sf::Vector2f increment={32.f*static_cast<float>((1.f/static_cast<float>(screenW))*cos(p.z+M_PI/2.f))/static_cast<float>(screenW),32.f*static_cast<float>((1.f/static_cast<float>(screenW))*sin(p.z+M_PI/2.f))/static_cast<float>(screenW)};
+                // sf::Vector2f increment={static_cast<float>((1.f/32.f)*cos(p.z+M_PI/2.f)),static_cast<float>((1.f/32.f)*sin(p.z+M_PI/2.f))};
+
+                sf::Vector2f increment={static_cast<float>((hypotenuse/32.f)*cos(p.z+M_PI/2.f)),static_cast<float>((hypotenuse/32.f)*sin(p.z+M_PI/2.f))};
+
+                // std::cout<<increment.x<<' ';
+                // std::cout<<increment.y<<'\n';
+                int setX=static_cast<int>((floorPos.x+j*increment.x)*(32.f/static_cast<float>(screenW)));
+                int setY=static_cast<int>((floorPos.y+j*increment.y)*(32.f/static_cast<float>(screenH)));
+                if (setX>32)setX=32;
+                if (setX<0)setX=0;
+                if (setY>32)setY=32;
+                if (setY<0)setY=0;
+                // std::cout<<setX<<'\n';
+                // std::cout<<setY<<'\n';
+                // sf::CircleShape floorP;
+                // floorP.setRadius(1);
+                // floorP.setFillColor(sf::Color::Green);
+                // floorP.setPosition({floorPos.x+(j*increment.x),floorPos.y+(j*increment.y)});
+                // floorP.setOrigin(10,10);
+                // horRayPV.push_back(floorP);
+                checkerboardBufferImage.setPixel(j,0,checkerboardImage.getPixel(setX,setY));
+                // std::cout<<increment.x<<' ';
+                // std::cout<<increment.y<<'\n';
+            }
+            // floorBufferTex.update();
+            floorTex.loadFromImage(checkerboardBufferImage);
+            // std::cout<<hypotenuse<<' ';
+            // std::cout<<floorX<<' ';
+            // std::cout<<floorY<<'\n';
+
+            rect.setTextureRect(sf::IntRect({0,0}, {32, 1}));
+            rect.setTexture(&floorTex);
+            floor.push_back(rect);
+
+            // sf::CircleShape floorP;
+            // floorP.setRadius(10);
+            // floorP.setFillColor(sf::Color::Blue);
+            // floorP.setPosition(floorPos);
+            // floorP.setOrigin(10,10);
+            // floorPV.push_back(floorP);
+        }
+        // std::cout<<"########################\n";
 
         //keyboard control
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) { //forwards
@@ -365,53 +472,13 @@ int main() {
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {setSpeed*=3;} //zoomies
             p.x-=cos(p.z)*setSpeed*dt.asSeconds(); p.y-=sin(p.z)*setSpeed*dt.asSeconds();
         }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) { //left
-            p.x+=sin(p.z)*setSpeed*dt.asSeconds(); p.y-=cos(p.z)*setSpeed*dt.asSeconds();
-        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) { //right
-            p.x-=sin(p.z)*setSpeed*dt.asSeconds(); p.y+=cos(p.z)*setSpeed*dt.asSeconds();
-        }
         player.setPosition(p.x, p.y);
         setSpeed=speed;
-        // float mouseSpeed=(static_cast<float>(sf::Mouse::getPosition(window).x)-curMouseX)/dt.asSeconds();
-        // //mouse rotation
-        // if (abs(mouseSpeed)>0) {
-        //     player.setRotation(player.getRotation()+mouseSpeed*dt.asSeconds());
-        // }
-
-        // if (abs(static_cast<float>(sf::Mouse::getPosition(window).x)-static_cast<float>(screenW)/2.f)>(0.2*static_cast<float>(screenW))) {
-        //     player.setRotation(player.getRotation()+2*setSpeed*(1.f/(2.f*static_cast<float>(screenW)))*
-        //         (static_cast<float>(sf::Mouse::getPosition(window).x)-static_cast<float>(screenW)/2.f)*dt.asSeconds());
-        // }
-
-        // sf::Vector2i screenOrigin1={(screenW-2),0};
-        // sf::Vector2i screenOrigin2={1,0};
-        // std::cout<<sf::Mouse::getPosition(window).x<<"\n";
-        // if ((sf::Mouse::getPosition(window).x)==0) {
-        //     sf::Mouse::setPosition(screenOrigin1);
-        //     std::cout<<"1$$$$$$$$$$$$\n";
-        // }
-        // if (sf::Mouse::getPosition(window).x==(screenW-1)) {
-        //     sf::Mouse::setPosition(screenOrigin2);
-        //     std::cout<<"2$$$$$$$$$$$$\n";
-        // }
-        // std::cout<<sf::Mouse::getPosition(window).x<<"\n";
-        // std::cout<<curMouseX<<"\n\n";
-        // std::cout<<abs(((sf::Mouse::getPosition(window).x)/static_cast<float>(screenW)))<<" ";
-        // if (sf::Mouse::getPosition(window).x>static_cast<float>(screenW-4)) {sf::Mouse::setPosition({0,sf::Mouse::getPosition(window).y},window);}
-        // if (abs(((sf::Mouse::getPosition(window).x)/static_cast<float>(screenW)))==0) {sf::Mouse::setPosition({sf::Mouse::getPosition(window).x+screenW,sf::Mouse::getPosition(window).y},window);}
-        player.setRotation(static_cast<float>(sf::Mouse::getPosition(window).x)/static_cast<float>(screenW-4)*360.f*sensitivity);
-        // std::cout<<abs(((sf::Mouse::getPosition(window).x)/static_cast<float>(screenW)))<<"\n";
-
-        // if (abs((300.f-static_cast<float>(sf::Mouse::getPosition(window).x))/dt.asSeconds())>0.1) {
-        // }
-        // initMouseX=static_cast<float>(sf::Mouse::getPosition(window).x);
-        // std::cout<<initMouseX<<"";
-        // std::cout<<((static_cast<float>(screenW)/2.f)-static_cast<float>(sf::Mouse::getPosition(window).x))<<" ";
-        // std::cout<<(((static_cast<float>(screenW)/2.f)-static_cast<float>(sf::Mouse::getPosition(window).x))/dt.asSeconds())<<" ";
-        // std::cout<<sf::Mouse::getPosition(window).x<<"\n";
-        // player.setRotation((((static_cast<float>(screenW)/2.f)-static_cast<float>(sf::Mouse::getPosition(window).x))/dt.asMicroseconds())*360.f*sensitivity);
-        // sf::Mouse::setPosition({450,300},window);
-        // std::cout<<sf::Mouse::getPosition(window).x<<"\n";
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) { //rotate ccw
+            player.setRotation(player.getRotation()-1.8*setSpeed*dt.asSeconds());
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) { //rotate cw
+            player.setRotation(player.getRotation()+1.8*setSpeed*dt.asSeconds());
+        }
 
         if (menu==true) {
             window.clear(sf::Color::Black);
@@ -429,13 +496,25 @@ int main() {
             for (int i=0;i<res;i++) {
                 window.draw(ray[i]);
             }
+            // while (!floorPV.empty()) {
+            //     window.draw(floorPV.back());
+            //     floorPV.pop_back();
+            // }
+            while (!horRayPV.empty()) {
+                window.draw(horRayPV.back());
+                horRayPV.pop_back();
+            }
             window.display();
         } else {
             //rendering
             window.clear(sf::Color::Black);
             //window.draw(ceiling);
             window.draw(ceiling);
-            window.draw(floor);
+            // window.draw(floor);
+            while (!floor.empty()) {
+                window.draw(floor.back());
+                floor.pop_back();
+            }
             while (!wall.empty()) {
                 window.draw(wall.front());
                 wall.pop();
