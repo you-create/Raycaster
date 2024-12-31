@@ -97,20 +97,18 @@ int main() {
     bannerBlueTex.loadFromFile("banner_blue.png");
     sf::Texture bannerRedTex;
     bannerRedTex.loadFromFile("banner_red.png");
-    sf::Texture doorTex;
-    doorTex.loadFromFile("door.png");
-    sf::Texture door2Tex;
-    door2Tex.loadFromFile("door2.png");
-    sf::Texture door3Tex;
-    door3Tex.loadFromFile("door3.png");
     sf::Texture door4Tex;
     door4Tex.loadFromFile("short_door.png");
-    sf::Texture gateTex;
-    gateTex.loadFromFile("gate.png");
     sf::Texture portalTex;
     portalTex.loadFromFile("portal.png");
     sf::Texture emptyTex;
     emptyTex.loadFromFile("empty.png");
+    sf::Texture knife2Tex;
+    knife2Tex.loadFromFile("knife2.png");
+    sf::Sprite knifeSpr;
+    knifeSpr.setTexture(knife2Tex);
+    knifeSpr.setPosition((screenW-320),(screenH-320));
+    knifeSpr.setScale(10,10);
 
     //player
     sf::Vector3f p(screenW/2,screenH/2,0); //position and direction (x, y, theta in rad)
@@ -156,17 +154,18 @@ int main() {
     //misc
     sf::RenderWindow window(sf::VideoMode(screenW, screenH), "Ray-Caster", sf::Style::Titlebar | sf::Style::Close);
     sf::Clock clock;
+    sf::Clock clockTotal;
     bool menu=false;
     std::queue<sf::RectangleShape> wall;
     float wallHeight;
     float movingPlayerHeight=playerHeight;
-    float portalFrame=0;
 
     while (window.isOpen()) {
 
         //general setup
         if (testFPS==false)window.setFramerateLimit(60);
         sf::Time dt=clock.restart(); //delta time
+        sf::Time timeTotal=clockTotal.getElapsedTime();
 
         //keyboard commands
         sf::Event event;
@@ -375,7 +374,6 @@ int main() {
                 rect.setSize(sf::Vector2f(1+screenW/res, wallHeight*screenH/wallDist));
                 rect.setOrigin(screenW/column,rect.getSize().y);
                 rect.setPosition((screenW/column+i*screenW/res),(screenH/2+screenH/(2*wallDist))*movingPlayerHeight);
-                //&&sf::Keyboard::isKeyPressed(sf::Keyboard::Key::O)
                 if (renderStack.top().id==5&&wallDist<4)rect.setPosition((screenW/column+i*screenW/res),(screenH/2-screenH/(2*wallDist)));
                 int texStartCoordX;
                 renderStack.top().side==1 ? texStartCoordX=renderStack.top().interceptYPos*32 :
@@ -383,17 +381,19 @@ int main() {
                 //separating short from long walls. should make constexpr
                 if (renderStack.top().id==1||renderStack.top().id==2){rect.setTextureRect(sf::IntRect({texStartCoordX, 0}, {static_cast<int>(wallDist*aliasAdjust), 64}));}
                 else {rect.setTextureRect(sf::IntRect({texStartCoordX, 0}, {static_cast<int>(wallDist*aliasAdjust), 32}));}
-                if (renderStack.top().id==6&&portalFrame<3000){rect.setTextureRect(sf::IntRect({texStartCoordX, 0}, {static_cast<int>(wallDist*aliasAdjust), 32}));}
-                else if ((renderStack.top().id==6&&portalFrame<6000)){rect.setTextureRect(sf::IntRect({texStartCoordX, 32}, {static_cast<int>(wallDist*aliasAdjust), 32}));}
-                else if ((renderStack.top().id==6&&portalFrame<9000)){rect.setTextureRect(sf::IntRect({texStartCoordX, 64}, {static_cast<int>(wallDist*aliasAdjust), 32}));}
-                portalFrame++;
-
-                if (portalFrame==9000)portalFrame=0;
+                if (renderStack.top().id==6&&(timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds()))<0.33){rect.setTextureRect(sf::IntRect({texStartCoordX, 0}, {static_cast<int>(wallDist*aliasAdjust), 32}));}
+                else if (renderStack.top().id==6&&(timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds()))<0.66){rect.setTextureRect(sf::IntRect({texStartCoordX, 32}, {static_cast<int>(wallDist*aliasAdjust), 32}));}
+                else if (renderStack.top().id==6&&(timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds()))<1){rect.setTextureRect(sf::IntRect({texStartCoordX, 64}, {static_cast<int>(wallDist*aliasAdjust), 32}));}
                 wall.push(rect);
 
                 renderStack.pop();
             }
         }
+
+        //knife
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Enter)) {
+            knifeSpr.setTextureRect(sf::IntRect({0,32},{32,32}));
+        } else {knifeSpr.setTextureRect(sf::IntRect({0,0},{32,32}));}
 
         //keyboard control
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) { //forwards
@@ -437,6 +437,7 @@ int main() {
                 window.draw(wall.front());
                 wall.pop();
             }
+            window.draw(knifeSpr);
             window.display();
             if (testFPS==true)std::cout<<(1/dt.asSeconds())<<'\n';
         }
