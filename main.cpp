@@ -10,8 +10,8 @@
 #include <iostream>
 
 
-//fix: mild fisheye, collision, button toggles, level editor, block top, alias adjust, inner wall textures
-//add: y shearing, gameplay, doors+portals, sky, textured floor, jump, angles (intersection method?), mouse control, more textures (plasma?)
+//fix: mild fisheye, collision, button toggles, level editor, block top, alias adjust, inner wall textures, floor
+//add: y shearing, gameplay, doors+portals, sky, jump, angles (intersection method?), mouse control, more textures (plasma?)
 
 int main() {
     //settings
@@ -29,6 +29,8 @@ int main() {
     constexpr float wallHeight2=2;
     constexpr float wallHeight3=1;
     constexpr float wallHeight4=1;
+    constexpr float wallHeight5=2;
+    constexpr float wallHeight6=2;
     constexpr float playerHeight=1;
     constexpr float aliasAdjust=0.3; //changes width of tex rects to reduce aliasing effects
 
@@ -37,6 +39,7 @@ int main() {
     sf::Color lightGrey(240,240,240);
     sf::Color grey(180,180,180);
     sf::Color darkGrey(140,140,140);
+    sf::Color darkestGrey(80,80,80);
     sf::Color lightBlue(83,168,252);
 
 
@@ -79,51 +82,35 @@ int main() {
     //ceiling and floor
     sf::RectangleShape ceiling;
     ceiling.setSize(sf::Vector2f(screenW,screenH/2));
-    ceiling.setFillColor(lightBlue);
-    // sf::RectangleShape floor;
-    // floor.setSize(sf::Vector2f(screenW,screenH/2));
-    // floor.setPosition(sf::Vector2f(0,screenH/2));
-    // floor.setFillColor(darkGrey);
-    std::vector<sf::RectangleShape> floor;
-    std::vector<sf::CircleShape> floorPV;
-    std::vector<sf::CircleShape> horRayPV;
-
+    ceiling.setFillColor(darkGrey);
+    sf::RectangleShape floor;
+    floor.setSize(sf::Vector2f(screenW,screenH/2));
+    floor.setPosition(sf::Vector2f(0,screenH/2));
+    floor.setFillColor(darkestGrey);
 
     //textures
-    // sf::Texture sandBricksTex;
-    // sandBricksTex.loadFromFile("sand_bricks.png");
-    // sf::Texture darkSandBricksTex;
-    // darkSandBricksTex.loadFromFile("dark_sand_bricks.png");
-    // sf::Texture stoneBricksTex;
-    // stoneBricksTex.loadFromFile("stone_bricks.png");
-    // sf::Texture stoneBricksTex2;
-    // stoneBricksTex2.loadFromFile("stone_bricks2.png");
-    // sf::Texture longStoneBricksTex;
-    // longStoneBricksTex.loadFromFile("long_stone_bricks.png");
-    // sf::Texture cobbleTex;
-    // cobbleTex.loadFromFile("cobble.png");
     sf::Texture largePlainBricksTex;
     largePlainBricksTex.loadFromFile("large_plain_bricks.png");
-    // sf::Texture towerWithCageTex;
-    // towerWithCageTex.loadFromFile("towe_with_cage.png");
     sf::Texture brickTowerTex;
     brickTowerTex.loadFromFile("brick_tower.png");
     sf::Texture bannerBlueTex;
     bannerBlueTex.loadFromFile("banner_blue.png");
     sf::Texture bannerRedTex;
     bannerRedTex.loadFromFile("banner_red.png");
-    // sf::Texture gravelTex;
-    // gravelTex.loadFromFile("gravel.jpg");
-    // floor.setTexture(&gravelTex);
-    // sf::Texture checkerBoardTex;
-    // checkerBoardTex.loadFromFile("checkerboard.png");
-    sf::Image checkerboardImage;
-    checkerboardImage.loadFromFile("red_checkerboard.png");
-    sf::Image checkerboardBufferImage;
-    checkerboardBufferImage.create(32,1);
-    sf::Texture floorTex;
-    floorTex.create(32,1);
-
+    sf::Texture doorTex;
+    doorTex.loadFromFile("door.png");
+    sf::Texture door2Tex;
+    door2Tex.loadFromFile("door2.png");
+    sf::Texture door3Tex;
+    door3Tex.loadFromFile("door3.png");
+    sf::Texture door4Tex;
+    door4Tex.loadFromFile("short_door.png");
+    sf::Texture gateTex;
+    gateTex.loadFromFile("gate.png");
+    sf::Texture portalTex;
+    portalTex.loadFromFile("portal.png");
+    sf::Texture emptyTex;
+    emptyTex.loadFromFile("empty.png");
 
     //player
     sf::Vector3f p(screenW/2,screenH/2,0); //position and direction (x, y, theta in rad)
@@ -173,6 +160,7 @@ int main() {
     std::queue<sf::RectangleShape> wall;
     float wallHeight;
     float movingPlayerHeight=playerHeight;
+    float portalFrame=0;
 
     while (window.isOpen()) {
 
@@ -221,7 +209,21 @@ int main() {
                 map[static_cast<int>(row*sf::Mouse::getPosition(window).y/screenH)]
                 [static_cast<int>(column*sf::Mouse::getPosition(window).x/screenW)]=4;
             }
-            if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&
+            if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&//door (end condition)
+                event.type==sf::Event::KeyPressed&&
+                event.key.code==sf::Keyboard::Num5&&
+                menu==true) {
+                map[static_cast<int>(row*sf::Mouse::getPosition(window).y/screenH)]
+                [static_cast<int>(column*sf::Mouse::getPosition(window).x/screenW)]=5;
+            }
+            if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&//door (end condition)
+                event.type==sf::Event::KeyPressed&&
+                event.key.code==sf::Keyboard::Num6&&
+                menu==true) {
+                map[static_cast<int>(row*sf::Mouse::getPosition(window).y/screenH)]
+                [static_cast<int>(column*sf::Mouse::getPosition(window).x/screenW)]=6;
+            }
+            if(sf::Mouse::isButtonPressed(sf::Mouse::Left)&&//delete block
                 sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)&&menu==true) {
                 map[static_cast<int>(row*sf::Mouse::getPosition(window).y/screenH)]
                 [static_cast<int>(column*sf::Mouse::getPosition(window).x/screenW)]=0;
@@ -232,6 +234,13 @@ int main() {
         p.z=player.getRotation()*M_PI/180; //[0,2*M_PI)
         setSpeed=speed;
 
+        //hor portal
+        scaledPos={column*p.x/screenW,row*p.y/screenH};
+        truncatedPos={static_cast<int>(scaledPos.x),static_cast<int>(scaledPos.y)};
+        if(map[truncatedPos.x][truncatedPos.y]==4) {
+            p.x=screenW-p.x;
+            player.setPosition(p.x, p.y);
+        }
 
         //DDA algo. checks grid+1 in direction of next nearest intercept for wall
         for (int i=0;i<res;i++) {
@@ -289,17 +298,12 @@ int main() {
                     interceptYPos=1-interceptYPos;
                 }
 
-                if (map[truncatedPos.y][truncatedPos.x]==4) { //end condition
+                if (map[truncatedPos.y][truncatedPos.x]==4||map[truncatedPos.y][truncatedPos.x]==6) { //end condition
                     renderStack.push({map[truncatedPos.y][truncatedPos.x],side,distX.x,distY.x,interceptXPos,interceptYPos});
                     break;
                 }
                 if (map[truncatedPos.y][truncatedPos.x]!=0) { //closer intercept
                     renderStack.push({map[truncatedPos.y][truncatedPos.x],side,distX.x,distY.x,interceptXPos,interceptYPos});
-                    // if (abs(distX.x)<abs(distY.x)) { //further intercept
-                    //     renderStack.push({map[truncatedPos.y][truncatedPos.x],1,distX.x+distX.y,distY.x,interceptXPos,interceptYPos});
-                    // } else {
-                    //     renderStack.push({map[truncatedPos.y][truncatedPos.x],0,distX.x,distY.x+distY.y,interceptXPos,interceptYPos});
-                    // }
                 }
             }
 
@@ -354,6 +358,14 @@ int main() {
                         wallHeight=wallHeight4;
                         rect.setTexture(&largePlainBricksTex);
                     break;
+                    case 5:
+                        wallHeight=wallHeight5;
+                        renderStack.top().side==1 ? rect.setTexture(&door4Tex) : rect.setTexture(&emptyTex);
+                    break;
+                    case 6:
+                        wallHeight=wallHeight6;
+                        rect.setTexture(&portalTex);
+                    break;
                     default:
                         wallHeight=1;
                         rect.setTexture(&largePlainBricksTex);
@@ -363,106 +375,25 @@ int main() {
                 rect.setSize(sf::Vector2f(1+screenW/res, wallHeight*screenH/wallDist));
                 rect.setOrigin(screenW/column,rect.getSize().y);
                 rect.setPosition((screenW/column+i*screenW/res),(screenH/2+screenH/(2*wallDist))*movingPlayerHeight);
-
+                //&&sf::Keyboard::isKeyPressed(sf::Keyboard::Key::O)
+                if (renderStack.top().id==5&&wallDist<4)rect.setPosition((screenW/column+i*screenW/res),(screenH/2-screenH/(2*wallDist)));
                 int texStartCoordX;
                 renderStack.top().side==1 ? texStartCoordX=renderStack.top().interceptYPos*32 :
                 texStartCoordX=renderStack.top().interceptXPos*32;
                 //separating short from long walls. should make constexpr
                 if (renderStack.top().id==1||renderStack.top().id==2){rect.setTextureRect(sf::IntRect({texStartCoordX, 0}, {static_cast<int>(wallDist*aliasAdjust), 64}));}
                 else {rect.setTextureRect(sf::IntRect({texStartCoordX, 0}, {static_cast<int>(wallDist*aliasAdjust), 32}));}
+                if (renderStack.top().id==6&&portalFrame<3000){rect.setTextureRect(sf::IntRect({texStartCoordX, 0}, {static_cast<int>(wallDist*aliasAdjust), 32}));}
+                else if ((renderStack.top().id==6&&portalFrame<6000)){rect.setTextureRect(sf::IntRect({texStartCoordX, 32}, {static_cast<int>(wallDist*aliasAdjust), 32}));}
+                else if ((renderStack.top().id==6&&portalFrame<9000)){rect.setTextureRect(sf::IntRect({texStartCoordX, 64}, {static_cast<int>(wallDist*aliasAdjust), 32}));}
+                portalFrame++;
 
+                if (portalFrame==9000)portalFrame=0;
                 wall.push(rect);
 
                 renderStack.pop();
             }
         }
-
-        //floor
-        for (int i=0;i<static_cast<int>((static_cast<float>(screenH)/2.f));i++) {
-            sf::RectangleShape rect; //final to be drawn
-            rect.setSize(sf::Vector2f(static_cast<float>(screenW), 2));
-            rect.setOrigin(0.f,0.f);//(static_cast<float>(screenH)/2.f)
-            rect.setPosition(0.f,(static_cast<float>(screenH)/2.f)+static_cast<float>(i)*rect.getSize().y);
-
-            //in screen coords (same as p.x, p.y)
-            //first 10* means player is 10px behind camera plane. i+1 to avoid div by 0
-            float hypotenuse=(10*static_cast<float>(screenH)/2.f)/(static_cast<float>(i+1)*cos((M_PI/180.f)*static_cast<float>(fov)/2.f));
-
-            // if (hypotenuse>32)hypotenuse=32;
-            // if (hypotenuse<0)hypotenuse=0;
-
-            // std::cout<<hypotenuse<<'\n';
-
-            sf::Vector2f floorPos; //coord of leftmost pixel of hor ray in screen coords
-            float angle=p.z+((-fov/2)*(1-coefficient))*M_PI/180;
-            if(angle<0)angle+=2*M_PI;
-            if(angle>=2*M_PI)angle-=2*M_PI;
-            // floorPos.x=32*(sin((M_PI/180.f)*static_cast<float>(fov)/2.f)*hypotenuse+p.x)/static_cast<float>(screenW);
-            // floorPos.y=32*(cos((M_PI/180.f)*static_cast<float>(fov)/2.f)*hypotenuse+p.y)/static_cast<float>(screenH);
-            // std::cout<<angle<<' '<<p.z<<'\n';
-            floorPos.x=cos(angle)*hypotenuse+p.x; //offset?
-            floorPos.y=sin(angle)*hypotenuse+p.y;
-            // floorPos.x=cos(p.z)*hypotenuse+p.x;
-            // floorPos.y=sin(p.z)*hypotenuse+p.y;
-            // floorPos.x=sin((M_PI/180.f)*static_cast<float>(fov)/2.f)*hypotenuse+p.x;
-            // floorPos.y=cos((M_PI/180.f)*static_cast<float>(fov)/2.f)*hypotenuse+p.y;
-
-            // if (floorPos.x>32)floorPos.x=32;
-            // if (floorPos.x<0)floorPos.x=0;
-            // if (floorPos.y>32)floorPos.y=32;
-            // if (floorPos.y<0)floorPos.y=0;
-            if (floorPos.x>screenW)floorPos.x=screenW;
-            if (floorPos.x<0)floorPos.x=0;
-            if (floorPos.y>screenH)floorPos.y=screenH;
-            if (floorPos.y<0)floorPos.y=0;
-
-            // std::cout<<floorPos.x<<' ';
-            // std::cout<<floorPos.y<<'\n';
-
-            for (int j=0;j<32;j++) {
-                // sf::Vector2f increment={32.f*static_cast<float>((1.f/static_cast<float>(screenW))*cos(p.z+M_PI/2.f))/static_cast<float>(screenW),32.f*static_cast<float>((1.f/static_cast<float>(screenW))*sin(p.z+M_PI/2.f))/static_cast<float>(screenW)};
-                // sf::Vector2f increment={static_cast<float>((1.f/32.f)*cos(p.z+M_PI/2.f)),static_cast<float>((1.f/32.f)*sin(p.z+M_PI/2.f))};
-
-                sf::Vector2f increment={static_cast<float>((hypotenuse/32.f)*cos(p.z+M_PI/2.f)),static_cast<float>((hypotenuse/32.f)*sin(p.z+M_PI/2.f))};
-
-                // std::cout<<increment.x<<' ';
-                // std::cout<<increment.y<<'\n';
-                int setX=static_cast<int>((floorPos.x+j*increment.x)*(32.f/static_cast<float>(screenW)));
-                int setY=static_cast<int>((floorPos.y+j*increment.y)*(32.f/static_cast<float>(screenH)));
-                if (setX>32)setX=32;
-                if (setX<0)setX=0;
-                if (setY>32)setY=32;
-                if (setY<0)setY=0;
-                // std::cout<<setX<<'\n';
-                // std::cout<<setY<<'\n';
-                // sf::CircleShape floorP;
-                // floorP.setRadius(1);
-                // floorP.setFillColor(sf::Color::Green);
-                // floorP.setPosition({floorPos.x+(j*increment.x),floorPos.y+(j*increment.y)});
-                // floorP.setOrigin(10,10);
-                // horRayPV.push_back(floorP);
-                checkerboardBufferImage.setPixel(j,0,checkerboardImage.getPixel(setX,setY));
-                // std::cout<<increment.x<<' ';
-                // std::cout<<increment.y<<'\n';
-            }
-            // floorBufferTex.update();
-            floorTex.loadFromImage(checkerboardBufferImage);
-            // std::cout<<hypotenuse<<' ';
-            // std::cout<<floorX<<' ';
-            // std::cout<<floorY<<'\n';
-
-            rect.setTextureRect(sf::IntRect({0,0}, {32, 1}));
-            rect.setTexture(&floorTex);
-            floor.push_back(rect);
-
-            // sf::CircleShape floorP;
-            // floorP.setRadius(10);
-            // floorP.setFillColor(sf::Color::Blue);
-            // floorP.setPosition(floorPos);
-            // floorP.setOrigin(10,10);
-            // floorPV.push_back(floorP);
-        }
-        // std::cout<<"########################\n";
 
         //keyboard control
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) { //forwards
@@ -496,25 +427,12 @@ int main() {
             for (int i=0;i<res;i++) {
                 window.draw(ray[i]);
             }
-            // while (!floorPV.empty()) {
-            //     window.draw(floorPV.back());
-            //     floorPV.pop_back();
-            // }
-            while (!horRayPV.empty()) {
-                window.draw(horRayPV.back());
-                horRayPV.pop_back();
-            }
             window.display();
         } else {
             //rendering
             window.clear(sf::Color::Black);
-            //window.draw(ceiling);
             window.draw(ceiling);
-            // window.draw(floor);
-            while (!floor.empty()) {
-                window.draw(floor.back());
-                floor.pop_back();
-            }
+            window.draw(floor);
             while (!wall.empty()) {
                 window.draw(wall.front());
                 wall.pop();
