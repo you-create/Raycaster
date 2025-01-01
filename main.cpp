@@ -97,8 +97,8 @@ int main() {
     portalTex.loadFromFile("orange_xor_256x512.png");
     sf::Texture emptyTex;
     emptyTex.loadFromFile("empty.png");
-    sf::Texture knife2Tex;
-    knife2Tex.loadFromFile("knife2.png");
+    sf::Texture knifeTex;
+    knifeTex.loadFromFile("knife_animation.png");
 
     //player
     sf::Vector3f p(screenW/2,screenH/2,0); //position and direction (x, y, theta in rad)
@@ -124,9 +124,9 @@ int main() {
 
     //canvas
     sf::Sprite knifeSpr;
-    knifeSpr.setTexture(knife2Tex);
-    knifeSpr.setPosition((screenW-320),(screenH-320));
-    knifeSpr.setScale(10,10);
+    knifeSpr.setTexture(knifeTex);
+    knifeSpr.setScale(2,2);
+    knifeSpr.setPosition((screenW/4),(screenH/4));
     sf::CircleShape crosshair;
     crosshair.setPosition({(static_cast<float>(screenW)/2.f),(static_cast<float>(screenH)/2.f)});
     crosshair.setRadius(2);
@@ -385,8 +385,16 @@ int main() {
 
         //knife
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Enter)) {
-            knifeSpr.setTextureRect(sf::IntRect({0,32},{32,32}));
-        } else {knifeSpr.setTextureRect(sf::IntRect({0,0},{32,32}));}
+            if (timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds())<0.1){knifeSpr.setTextureRect(sf::IntRect({0,0},{256,256}));}
+            else if (timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds())<0.2){knifeSpr.setTextureRect(sf::IntRect({0,255},{256,256}));}
+            else if (timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds())<0.3){knifeSpr.setTextureRect(sf::IntRect({0,511},{256,256}));}
+            else if (timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds())<0.4){knifeSpr.setTextureRect(sf::IntRect({0,767},{256,256}));}
+            else if (timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds())<0.5){knifeSpr.setTextureRect(sf::IntRect({0,1023},{256,256}));}
+            else if (timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds())<0.6){knifeSpr.setTextureRect(sf::IntRect({0,767},{256,256}));}
+            else if (timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds())<0.7){knifeSpr.setTextureRect(sf::IntRect({0,511},{256,256}));}
+            else if (timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds())<0.8){knifeSpr.setTextureRect(sf::IntRect({0,255},{256,256}));}
+            else {knifeSpr.setTextureRect(sf::IntRect({0,0},{256,256}));}
+        } else {knifeSpr.setTextureRect(sf::IntRect({0,0},{256,256}));}
 
         //keyboard control
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) { //forwards
