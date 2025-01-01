@@ -10,8 +10,8 @@
 #include <iostream>
 
 
-//fix: mild fisheye, collision, button toggles, level editor, block top, alias adjust, inner wall textures, floor
-//add: y shearing, gameplay, doors+portals, sky, jump, angles (intersection method?), mouse control, more textures (plasma?)
+//fix: mild fisheye, collision, button toggles, level editor, block top, alias adjust, inner wall textures, floor, doors+portals
+//add: y shearing, gameplay, sky, jump, angles (intersection method?), mouse control, more textures (plasma?)
 
 int main() {
     //settings
@@ -35,7 +35,6 @@ int main() {
 
     //colours
     sf::Color white(255,255,255);
-    sf::Color grey(180,180,180);
     sf::Color darkGrey(140,140,140);
     sf::Color darkestGrey(80,80,80);
 
@@ -101,7 +100,6 @@ int main() {
     sf::Texture knife2Tex;
     knife2Tex.loadFromFile("knife2.png");
 
-
     //player
     sf::Vector3f p(screenW/2,screenH/2,0); //position and direction (x, y, theta in rad)
     sf::ConvexShape player;
@@ -133,6 +131,15 @@ int main() {
     crosshair.setPosition({(static_cast<float>(screenW)/2.f),(static_cast<float>(screenH)/2.f)});
     crosshair.setRadius(2);
 
+    //text
+    sf::Font font;
+    font.loadFromFile("ARIAL.TTF");
+    sf::Text text;
+    text.setFont(font);
+    text.setCharacterSize(24);
+    text.setFillColor(sf::Color::White);
+    text.setPosition(10,10);
+
     //algorithm use
     int side;
     sf::Vector2f scaledPos; //scaled position
@@ -161,9 +168,13 @@ int main() {
     bool curState=false;
     sf::Clock clock;
     sf::Clock clockTotal;
+    sf::Clock clockFrame;
+    sf::Time timeFrame;
     bool menu=false;
     std::queue<sf::RectangleShape> wall;
     float wallHeight;
+    int frameCounter=0;
+    int fps;
 
     while (window.isOpen()) {
 
@@ -363,6 +374,7 @@ int main() {
                 //separating short from long walls. should make constexpr
                 if (renderStack.top().id==1||renderStack.top().id==2){rect.setTextureRect(sf::IntRect({texStartCoordX, 0}, {static_cast<int>(wallDist*aliasAdjust), 64}));}
                 else {rect.setTextureRect(sf::IntRect({texStartCoordX, 0}, {static_cast<int>(wallDist*aliasAdjust), 32}));}
+                //portal animation
                 if (renderStack.top().id==6&&(timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds()))<0.5){texStartCoordX*=8;rect.setTextureRect(sf::IntRect({texStartCoordX, 0}, {static_cast<int>(wallDist*aliasAdjust), 256}));}
                 else if (renderStack.top().id==6&&(timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds()))<1){texStartCoordX*=8;rect.setTextureRect(sf::IntRect({texStartCoordX, 256}, {static_cast<int>(wallDist*aliasAdjust), 256}));}
                 wall.push(rect);
@@ -447,9 +459,16 @@ int main() {
             }
             window.draw(knifeSpr);
             window.draw(crosshair);
+            window.draw(text);
             window.display();
-            if (testFPS==true)std::cout<<(1/dt.asSeconds())<<'\n';
         }
+        frameCounter++;
+        if (frameCounter>10) {
+            fps=frameCounter/timeFrame.asSeconds();
+            frameCounter=0;
+            timeFrame=clockFrame.restart();
+        }
+        text.setString("FPS: "+std::to_string(fps));
     }
     //saving map
     std::ofstream mapFileOut("map.txt");
