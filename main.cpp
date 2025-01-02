@@ -9,10 +9,6 @@
 #include <fstream>
 #include <iostream>
 
-
-//fix: mild fisheye, collision, button toggles, level editor, block top, alias adjust, inner wall textures, floor, doors+portals
-//add: y shearing, gameplay, sky, jump, angles (intersection method?), mouse control, more textures (plasma?)
-
 int main() {
     //settings
     constexpr bool testFPS=0; //if true prints max fps
@@ -111,17 +107,6 @@ int main() {
     player.setOrigin(p.x,p.y);
     int setSpeed; //used for logic
 
-    //npc
-    sf::Vector3f e(screenW/2,screenH/2,0); //position and direction (x, y, theta in rad)
-    sf::ConvexShape enemy;
-    enemy.setPointCount(3);
-    enemy.setPoint(0, sf::Vector2f(p.x,p.y)); //drawing as triangle
-    enemy.setPoint(1, sf::Vector2f(p.x-20,p.y-5.36));
-    enemy.setPoint(2, sf::Vector2f(p.x-20,p.y+5.36));
-    enemy.setFillColor(sf::Color::Red);
-    enemy.setOrigin(p.x,p.y);
-    enemy.setPosition(screenW/2,screenH/2);
-
     //canvas
     sf::Sprite knifeSpr;
     knifeSpr.setTexture(knifeTex);
@@ -142,9 +127,9 @@ int main() {
 
     //algorithm use
     int side;
-    sf::Vector2f scaledPos; //scaled position
-    sf::Vector2i truncatedPos; //truncated scaled position
-    sf::Vector2f internalPos; //internal position in square
+    sf::Vector2f scaledPos; //player scaled position
+    sf::Vector2i truncatedPos; //player truncated scaled position
+    sf::Vector2f internalPos; //player internal position in square
     sf::Vector2f n; //normalised direction vector (max length 1)
     sf::Vector2f distX; //x: dist to first ver intercept, y: dist between consecutive ver intercepts
     sf::Vector2f distY; //x: dist to first hor intercept, y: dist between consecutive hor intercepts
@@ -159,6 +144,7 @@ int main() {
         float distY; //distY to hit
         float interceptXPos; //hor position of hit 0~1 on face
         float interceptYPos; //ver position of hit 0~1 on face
+        sf::Sprite sprite;
     };
     std::stack<RayInfo> renderStack; //remembers order of hits to then render in reverse
 
@@ -182,6 +168,8 @@ int main() {
         if (testFPS==false)window.setFramerateLimit(60);
         sf::Time dt=clock.restart(); //delta time
         sf::Time timeTotal=clockTotal.getElapsedTime();
+        p.z=player.getRotation()*M_PI/180; //[0,2*M_PI)
+        setSpeed=speed;
 
         //keyboard commands
         sf::Event event;
@@ -231,10 +219,6 @@ int main() {
                 }
             }
         }
-
-        //general setup
-        p.z=player.getRotation()*M_PI/180; //[0,2*M_PI)
-        setSpeed=speed;
 
         //hor portal
         scaledPos={column*p.x/screenW,row*p.y/screenH};
@@ -360,10 +344,9 @@ int main() {
                     break;
                     default:
                         wallHeight=1;
-                        rect.setTexture(&largePlainBricksTex);
+                        rect.setTexture(&emptyTex);
                         break;
                 }
-
                 rect.setSize(sf::Vector2f(1+screenW/res, wallHeight*screenH/wallDist));
                 rect.setOrigin(screenW/column,rect.getSize().y);
                 rect.setPosition((screenW/column+i*screenW/res),(screenH/2+screenH/(2*wallDist)));
@@ -385,18 +368,10 @@ int main() {
 
         //knife
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Enter)) {
-            if (timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds())<0.1){knifeSpr.setTextureRect(sf::IntRect({0,0},{256,256}));}
-            else if (timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds())<0.2){knifeSpr.setTextureRect(sf::IntRect({0,255},{256,256}));}
-            else if (timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds())<0.3){knifeSpr.setTextureRect(sf::IntRect({0,511},{256,256}));}
-            else if (timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds())<0.4){knifeSpr.setTextureRect(sf::IntRect({0,767},{256,256}));}
-            else if (timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds())<0.5){knifeSpr.setTextureRect(sf::IntRect({0,1023},{256,256}));}
-            else if (timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds())<0.6){knifeSpr.setTextureRect(sf::IntRect({0,767},{256,256}));}
-            else if (timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds())<0.7){knifeSpr.setTextureRect(sf::IntRect({0,511},{256,256}));}
-            else if (timeTotal.asSeconds()-static_cast<int>(timeTotal.asSeconds())<0.8){knifeSpr.setTextureRect(sf::IntRect({0,255},{256,256}));}
-            else {knifeSpr.setTextureRect(sf::IntRect({0,0},{256,256}));}
+            knifeSpr.setTextureRect(sf::IntRect({0,511},{256,256}));
         } else {knifeSpr.setTextureRect(sf::IntRect({0,0},{256,256}));}
 
-        //keyboard control
+        //player keyboard control (wasd)
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) { //forwards
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {setSpeed*=3;} //zoomies
             p.x+=cos(p.z)*setSpeed*dt.asSeconds(); p.y+=sin(p.z)*setSpeed*dt.asSeconds();
@@ -453,7 +428,6 @@ int main() {
             }
             window.draw(grid);
             window.draw(player);
-            window.draw(enemy);
             window.display();
         }
         //drawing gameplay
@@ -465,6 +439,7 @@ int main() {
                 window.draw(wall.front());
                 wall.pop();
             }
+            // window.draw(enemySpr);
             window.draw(knifeSpr);
             window.draw(crosshair);
             window.draw(text);
